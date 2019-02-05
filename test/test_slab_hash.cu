@@ -17,7 +17,8 @@
 #include <stdio.h>
 #include <cuda_runtime_api.h>
 #include <cuda.h>
-
+#include "slab_alloc.cuh"
+#include "slab_hash.cuh"
 #define DEVICE_ID 0
 
 int main(int argc, char** argv){
@@ -30,5 +31,13 @@ int main(int argc, char** argv){
     cudaGetDeviceProperties(&devProp, DEVICE_ID);
   }
   printf("Device: %s\n", devProp.name);
+
+  auto slab_alloc = new SlabAllocLight<8,32,1>();
+  printf("slab alloc constructed\n");
+
+  delete slab_alloc;
+
+  auto slab_hash = new GpuSlabHash<uint32_t, uint32_t, SlabHashType::ConcurrentMap> ();
+  
   return 0;
 }

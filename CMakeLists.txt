@@ -71,5 +71,6 @@ if(SLABHASH_GENCODE_SM71)
   set(GENCODE ${GENCODE} ${GENCODE_SM71})
 endif(SLABHASH_GENCODE_SM71)
 
-#include_directories(src)
+include_directories(SlabAlloc/src)
+include_directories(src src/concurrent)
 add_subdirectory(test)
