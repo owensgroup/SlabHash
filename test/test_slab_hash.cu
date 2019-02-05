@@ -14,30 +14,32 @@
  * limitations under the License.
  */
 
-#include <stdio.h>
-#include <cuda_runtime_api.h>
 #include <cuda.h>
+#include <cuda_runtime_api.h>
+#include <stdio.h>
+#include <iostream>
 #include "slab_alloc.cuh"
 #include "slab_hash.cuh"
 #define DEVICE_ID 0
 
-int main(int argc, char** argv){
-	//=========
-	int devCount;
+int main(int argc, char** argv) {
+  //=========
+  int devCount;
   cudaGetDeviceCount(&devCount);
   cudaDeviceProp devProp;
-  if(devCount){
-    cudaSetDevice(DEVICE_ID); // be changed later
+  if (devCount) {
+    cudaSetDevice(DEVICE_ID);  // be changed later
     cudaGetDeviceProperties(&devProp, DEVICE_ID);
   }
   printf("Device: %s\n", devProp.name);
 
-  auto slab_alloc = new SlabAllocLight<8,32,1>();
+  auto slab_alloc = new SlabAllocLight<8, 32, 1>();
   printf("slab alloc constructed\n");
 
   delete slab_alloc;
 
-  auto slab_hash = new GpuSlabHash<uint32_t, uint32_t, SlabHashType::ConcurrentMap> ();
-  
+  auto slab_hash =
+      new GpuSlabHash<uint32_t, uint32_t, SlabHashType::ConcurrentMap>();
+  std::cout << slab_hash->to_string() << std::endl;
   return 0;
 }

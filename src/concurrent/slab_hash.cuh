@@ -18,15 +18,26 @@
 
 #include <cassert>
 #include <iostream>
+#include <random>
+
 #include "slab_hash_global.cuh"
 
 template <typename KeyT, typename ValueT>
 class GpuSlabHash<KeyT, ValueT, SlabHashType::ConcurrentMap> {
  private:
+  // fixed known parameters:
+  static constexpr uint32_t WARP_WIDTH_ = 32;
+  static constexpr uint32_t PRIME_DIVISOR_ = 4294967291u;
+
   // the used hash function:
   uint32_t num_buckets_;
   // size_t 		allocator_heap_size_;
-  // hash_function hf_;
+
+  struct hash_function {
+    uint32_t x;
+    uint32_t y;
+  } hf_;
+
   // bucket data structures:
   concurrent_slab<KeyT, ValueT>* d_table_;
   // dynamic memory allocator:
@@ -34,7 +45,39 @@ class GpuSlabHash<KeyT, ValueT, SlabHashType::ConcurrentMap> {
  public:
   GpuSlabHash() : num_buckets_(10), d_table_(nullptr) {
     std::cout << " == slab hash concstructor called" << std::endl;
+
+    // a single slab on a ConcurrentMap should be 128 bytes
+    assert(sizeof(concurrent_slab<KeyT, ValueT>) ==
+           (WARP_WIDTH_ * sizeof(uint32_t)));
+
+    // allocating initial buckets:
+    CHECK_CUDA_ERROR(
+        cudaMalloc((void**)&d_table_,
+                   sizeof(concurrent_slab<KeyT, ValueT>) * num_buckets_));
+
+    // creating a random number generator:
+    std::mt19937 rng(time(0));
+    hf_.x = rng() % PRIME_DIVISOR_;
+    if (hf_.x < 1)
+      hf_.x = 1;
+    hf_.y = rng() % PRIME_DIVISOR_;
   }
 
-  ~GpuSlabHash() {}
+  ~GpuSlabHash() { CHECK_CUDA_ERROR(cudaFree(d_table_)); }
+
+  std::string to_string();
 };
+
+template <typename KeyT, typename ValueT>
+std::string
+GpuSlabHash<KeyT, ValueT, SlabHashType::ConcurrentMap>::to_string() {
+  std::string result;
+  result += " ==== GpuSlabHash: \n";
+  result += "\t SlabHashType:     \t\t ConcurrentMap\n";
+  result += "\t Number of buckets:\t\t " + std::to_string(num_buckets_) + "\n";
+  result += "\t d_table_ address: \t\t " +
+            std::to_string(reinterpret_cast<uint64_t>(static_cast<void*>(d_table_))) + "\n";
+  result += "\t hash function = \t\t (" + std::to_string(hf_.x) + ", " +
+            std::to_string(hf_.y) + ")\n";
+  return result;
+}
