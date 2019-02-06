@@ -21,11 +21,13 @@
 #include <random>
 
 #include "slab_hash_global.cuh"
+#include "concurrent/device/build.cuh"
 
 template <typename KeyT, typename ValueT>
 class GpuSlabHash<KeyT, ValueT, SlabHashType::ConcurrentMap> {
  private:
   // fixed known parameters:
+  static constexpr uint32_t BLOCK_SIZE_ = 128;
   static constexpr uint32_t WARP_WIDTH_ = 32;
   static constexpr uint32_t PRIME_DIVISOR_ = 4294967291u;
 
@@ -43,7 +45,7 @@ class GpuSlabHash<KeyT, ValueT, SlabHashType::ConcurrentMap> {
   // dynamic memory allocator:
   // slab_alloc::context_alloc<1> ctx_alloc_;
  public:
-  GpuSlabHash() : num_buckets_(10), d_table_(nullptr) {
+  GpuSlabHash(const uint32_t num_buckets) : num_buckets_(num_buckets), d_table_(nullptr) {
     std::cout << " == slab hash concstructor called" << std::endl;
 
     // a single slab on a ConcurrentMap should be 128 bytes
@@ -55,6 +57,9 @@ class GpuSlabHash<KeyT, ValueT, SlabHashType::ConcurrentMap> {
         cudaMalloc((void**)&d_table_,
                    sizeof(concurrent_slab<KeyT, ValueT>) * num_buckets_));
 
+    CHECK_CUDA_ERROR(cudaMemset(
+        d_table_, 0xFF, sizeof(concurrent_slab<KeyT, ValueT>) * num_buckets_));
+
     // creating a random number generator:
     std::mt19937 rng(time(0));
     hf_.x = rng() % PRIME_DIVISOR_;
@@ -65,7 +70,22 @@ class GpuSlabHash<KeyT, ValueT, SlabHashType::ConcurrentMap> {
 
   ~GpuSlabHash() { CHECK_CUDA_ERROR(cudaFree(d_table_)); }
 
+  // returns some debug information about the slab hash
   std::string to_string();
+
+  __device__ __host__ __forceinline__ uint32_t
+  computeBucket(const KeyT& key) const {
+    return (((hf_.x ^ key) + hf_.y) % PRIME_DIVISOR_) % num_buckets_;
+  }
+
+  void bulk_build(KeyT* d_key, ValueT* d_value, uint32_t num_keys) {
+    uint32_t num_blocks = (num_keys + BLOCKSIZE_ - 1) / BLOCKSIZE_;
+    // calling the kernel for bulk build:
+    // build_table_kernel<KeyT, ValueT><<<num_blocks, BLOCKSIZE_>>>(
+    //     d_key, d_value, num_keys, d_table_, num_buckets_, ctx_alloc_, hf_);
+    build_table_kernel<KeyT, ValueT><<<num_blocks, BLOCKSIZE_>>>(
+        d_key, d_value, num_keys, *this);    
+  }
 };
 
 template <typename KeyT, typename ValueT>
@@ -75,8 +95,10 @@ GpuSlabHash<KeyT, ValueT, SlabHashType::ConcurrentMap>::to_string() {
   result += " ==== GpuSlabHash: \n";
   result += "\t SlabHashType:     \t\t ConcurrentMap\n";
   result += "\t Number of buckets:\t\t " + std::to_string(num_buckets_) + "\n";
-  result += "\t d_table_ address: \t\t " +
-            std::to_string(reinterpret_cast<uint64_t>(static_cast<void*>(d_table_))) + "\n";
+  result +=
+      "\t d_table_ address: \t\t " +
+      std::to_string(reinterpret_cast<uint64_t>(static_cast<void*>(d_table_))) +
+      "\n";
   result += "\t hash function = \t\t (" + std::to_string(hf_.x) + ", " +
             std::to_string(hf_.y) + ")\n";
   return result;
