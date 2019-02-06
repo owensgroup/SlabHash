@@ -18,6 +18,7 @@
 #include <cuda_runtime_api.h>
 #include <stdio.h>
 #include <iostream>
+#include "gpu_hash_table.cuh"
 #include "slab_alloc.cuh"
 #include "slab_hash.cuh"
 #define DEVICE_ID 0
@@ -33,13 +34,15 @@ int main(int argc, char** argv) {
   }
   printf("Device: %s\n", devProp.name);
 
-  auto slab_alloc = new SlabAllocLight<8, 32, 1>();
-  printf("slab alloc constructed\n");
+  auto my_hash_table = new gpu_hash_table<uint32_t, uint32_t>(100, 10, 10);
+  // auto slab_alloc = new SlabAllocLight<8, 32, 1>();
+  // printf("slab alloc constructed\n");
 
-  delete slab_alloc;
+  // delete slab_alloc;
 
-  auto slab_hash =
-      new GpuSlabHash<uint32_t, uint32_t, SlabHashType::ConcurrentMap>();
-  std::cout << slab_hash->to_string() << std::endl;
+  // auto slab_hash =
+  //     new GpuSlabHash<uint32_t, uint32_t, SlabHashType::ConcurrentMap>();
+  // std::cout << slab_hash->to_string() << std::endl;
+  delete my_hash_table;
   return 0;
 }

@@ -16,7 +16,7 @@
 
 #pragma once
 
-#define CHECK_CUDA_ERROR(call)                                     \
+#define CHECK_CUDA_ERROR(call)                                \
   do {                                                        \
     cudaError_t err = call;                                   \
     if (err != cudaSuccess) {                                 \
@@ -26,6 +26,17 @@
     }                                                         \
   } while (0)
 
+// internal parameters for slab hash device functions:
+static constexpr uint32_t EMPTY_KEY = 0xFFFFFFFF;
+static constexpr uint32_t EMPTY_VALUE = 0xFFFFFFFF;
+static constexpr uint64_t EMPTY_PAIR_64 = 0xFFFFFFFFFFFFFFFFLL;
+static constexpr uint32_t WARP_WIDTH = 32;
+static constexpr uint32_t A_INDEX_POINTER = 0xFFFFFFFE;
+static constexpr uint32_t EMPTY_INDEX_POINTER = 0xFFFFFFFF;
+static constexpr uint32_t BASE_UNIT_SIZE = WARP_WIDTH;
+static constexpr uint32_t REGULAR_NODE_ADDRESS_MASK = 0x30000000;
+static constexpr uint32_t REGULAR_NODE_DATA_MASK = 0x3FFFFFFF;
+static constexpr uint32_t REGULAR_NODE_KEY_MASK = 0x15555555;
 
 // only works with up to 32-bit key/values
 template <typename KeyT, typename ValueT>
@@ -41,6 +52,13 @@ struct __align__(32) concurrent_slab {
   uint32_t ptr_index[2];
 };
 
+/*
+ * Different types of slab hash:
+ * 1. Concurrent map: it assumes that all operations can be performed
+ * concurrently
+ * 2. Phase-concurrent map: it assumes updates and searches are done in
+ * different phases
+ */
 enum class SlabHashType { ConcurrentMap, PhaseConcurrentMap };
 
 template <typename KeyT, typename ValueT, SlabHashType SlabHashT>
