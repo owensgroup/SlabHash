@@ -34,7 +34,7 @@ int main(int argc, char** argv) {
   }
   printf("Device: %s\n", devProp.name);
 
-  auto my_hash_table = new gpu_hash_table<uint32_t, uint32_t>(100, 10, 10);
+  auto my_hash_table = new gpu_hash_table<uint32_t, uint32_t>(100, 10);
   // auto slab_alloc = new SlabAllocLight<8, 32, 1>();
   // printf("slab alloc constructed\n");
 

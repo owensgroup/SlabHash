@@ -1,0 +1,159 @@
+/*
+ * Copyright 2019 Saman Ashkiani
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include <stdio.h>
+#include <time.h>
+#include <unistd.h>
+#include <algorithm>
+#include <cstdlib>
+#include <iostream>
+#include <random>
+#include <vector>
+#include "gpu_hash_table.cuh"
+#include "slab_hash_global.cuh"
+//=======================================
+#define DEVICE_ID 0
+
+int main(int argc, char** argv) {
+  //=========
+  int devCount;
+  cudaGetDeviceCount(&devCount);
+  cudaDeviceProp devProp;
+  if (devCount) {
+    cudaSetDevice(DEVICE_ID);  // be changed later
+    cudaGetDeviceProperties(&devProp, DEVICE_ID);
+  }
+  printf("Device: %s\n", devProp.name);
+
+  //======================================
+  // Building my hash table:
+  //======================================
+  uint32_t num_keys = 10;
+
+  float expected_chain = 0.1f;
+  uint32_t num_elements_per_unit = 15;
+  uint32_t expected_elements_per_bucket =
+      expected_chain * num_elements_per_unit;
+  uint32_t num_buckets = (num_keys + expected_elements_per_bucket - 1) /
+                         expected_elements_per_bucket;
+  // size_t max_allocator_size = ((WARP_ALLOCATOR_TYPE ==
+  // WARP_ALLOCATOR_REGULAR)?32:1) * NUM_MEM_BLOCKS_PER_SUPER_BLOCK *
+  // MEM_BLOCK_SIZE; printf("Max allocator size: %lu\n", max_allocator_size);
+
+  // ==== generating key-values and queries on the host:
+  float existing_ratio = 1.0f;  // ratio of queries within the table
+  uint32_t num_queries = num_keys;
+
+  using KeyT = uint32_t;
+  using ValueT = uint32_t;
+  auto num_elements = 2 * num_keys;
+
+  std::vector<KeyT> h_key(num_elements);
+  std::vector<ValueT> h_value(num_elements);
+
+  // std::iota(h_key.begin(), h_key.end(), 0);
+  const auto f = [](const KeyT& key) { return key * 10; };
+
+  std::random_device rd;
+  std::mt19937 rng(rd());
+  std::vector<uint32_t> index(num_elements);
+  std::iota(index.begin(), index.end(), 0);
+  std::shuffle(index.begin(), index.end(), rng);
+
+  for (int32_t i = 0; i < index.size(); i++) {
+    h_key[i] = index[i];
+    h_value[i] = f(h_key[i]);
+  }
+
+  // for (int32_t i = 0; i< h_key.size(); i++) {
+  // 	std::cout << "(" << h_key[i] << ", " << h_value[i] << ")" << std::endl;
+  // }
+
+  // === generating random queries with a fixed ratio existing in keys
+  // uint32_t num_existing = static_cast<uint32_t>(existing_ratio *
+  // num_queries);
+
+  // for(int i = 0; i<num_existing; i++){
+  // 	h_query[i] = h_key[num_keys - 1 - i];
+  // 	h_correct_result[i] = h_query[i];
+  // }
+
+  // for(int i = 0; i<(num_queries - num_existing); i++)
+  // {
+  // 	h_query[num_existing + i] = h_key[num_keys + i];
+  // 	h_correct_result[num_existing + i] = SEARCH_NOT_FOUND__;
+  // }
+  // // permuting the queries:
+  // randomPermutePairs(h_query, h_correct_result, num_queries);
+
+  gpu_hash_table<KeyT, ValueT> hash_table(num_keys, num_buckets
+                                          /*max_allocator_size*/);
+  // float init_time = hash_table.init();
+  // printf("Init time = %.3f\n", init_time);
+
+  // float build_time = hash_table.hash_build(h_key, h_value, num_keys);
+  // printf("Building time: %.3f\n", build_time);
+  // my_hash_table::gpu_hash_table hash_table(num_keys, num_buckets,
+  // max_allocator_size); float init_time = hash_table.init();
+  float build_time =
+      hash_table.hash_build(h_key.data(), h_value.data(), num_keys);
+  // float search_time = hash_table.hash_search(h_query, h_result, num_queries);
+  // float search_time_bulk = hash_table.hash_search_bulk(h_query, h_result,
+  // num_queries);
+  // // hash_table.print_bucket(0);
+  printf("Hash table: \n");
+  printf("num_keys = %d, num_buckets = %d\n", num_keys, num_buckets);
+  // printf("\t1) Hash table init in %.3f ms\n", init_time);
+  printf("\t2) Hash table built in %.3f ms (%.3f M elements/s)\n", build_time,
+         double(num_keys) / build_time / 1000.0);
+  // printf("\t3) Hash table search (%.2f) in %.3f ms (%.3f M queries/s)\n",
+  // existing_ratio, search_time, double(num_queries)/search_time/1000.0);
+  // printf("\t4) Hash table bulk search (%.2f) in %.3f ms (%.3f M
+  // queries/s)\n", existing_ratio, search_time_bulk,
+  // double(num_queries)/search_time_bulk/1000.0);
+
+  // double load_factor = hash_table.load_factor();
+
+  // printf("The load factor is %.2f, number of buckets %d\n", load_factor,
+  // num_buckets); validation: for(int i = 0; i<num_queries; i++){
+  // 	if(h_correct_result[i] != h_result[i])
+  // 	{
+  // 		printf("### wrong result at index %d: [%d] -> %f, but should be
+  // %f\n", i, h_query[i], h_result[i], h_correct_result[i]); 		break;
+  // 	}
+  // 	if(i == (num_queries-1))
+  // 		printf("Validation done successfully\n");
+  // }
+
+  //	=== building cudpp for comparison
+  // float load_factor_cudpp = 0.8f;
+  // cudpp_hash_table cudpp_hash(h_key, h_value, num_keys, num_queries,
+  // load_factor_cudpp, false, false); float cudpp_build_time =
+  // cudpp_hash.hash_build(); float cudpp_search_time =
+  // cudpp_hash.lookup_hash_table(h_query, num_queries); printf(" CUDPP Hash
+  // table: \n"); printf("\t1) Hash table built in %.3f ms (%.3f M
+  // elements/s)\n", cudpp_build_time,
+  // double(num_keys)/cudpp_build_time/1000.0); printf("\t2) Hash table search
+  // (%.2f) in %.3f ms (%.3f M elements/s)\n", existing_ratio,
+  // cudpp_search_time, double(num_queries)/cudpp_search_time/1000.0);
+  //	===
+
+  // delete[] h_key;
+  // delete[] h_value;
+  // delete[] h_result;
+  // delete[] h_correct_result;
+  // delete[] h_query;
+}

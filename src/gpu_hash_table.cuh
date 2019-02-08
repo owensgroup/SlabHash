@@ -16,7 +16,8 @@
 
 #pragma once
 #include "slab_hash_global.cuh"
-
+#include "concurrent/slab_hash.cuh"
+ 
 template <typename KeyT, typename ValueT>
 class gpu_hash_table {
  private:
@@ -35,8 +36,8 @@ class gpu_hash_table {
   ValueT* d_result_;
 
   gpu_hash_table(uint32_t max_keys,
-                 uint32_t num_buckets,
-                 uint32_t max_allocator_size)
+                 uint32_t num_buckets
+                 /*uint32_t max_allocator_size*/)
       : max_keys_(max_keys),
         num_buckets_(num_buckets),
         // allocator_heap_size_(max_allocator_size),
