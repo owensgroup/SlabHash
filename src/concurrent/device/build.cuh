@@ -55,5 +55,5 @@ __global__ void build_table_kernel(
 
   // TODO: make this a member function of slab_hash
   insert_pair<KeyT, ValueT>(to_insert, laneId, myKey, myValue, myBucket,
-                            d_table /*, context*/);
+                            slab_hash /*, context*/);
 }

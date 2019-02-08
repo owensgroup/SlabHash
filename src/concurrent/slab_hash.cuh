@@ -27,7 +27,7 @@ template <typename KeyT, typename ValueT>
 class GpuSlabHash<KeyT, ValueT, SlabHashType::ConcurrentMap> {
  private:
   // fixed known parameters:
-  static constexpr uint32_t BLOCK_SIZE_ = 128;
+  static constexpr uint32_t BLOCKSIZE_ = 128;
   static constexpr uint32_t WARP_WIDTH_ = 32;
   static constexpr uint32_t PRIME_DIVISOR_ = 4294967291u;
 
@@ -76,6 +76,10 @@ class GpuSlabHash<KeyT, ValueT, SlabHashType::ConcurrentMap> {
   __device__ __host__ __forceinline__ uint32_t
   computeBucket(const KeyT& key) const {
     return (((hf_.x ^ key) + hf_.y) % PRIME_DIVISOR_) % num_buckets_;
+  }
+
+  __device__ __host__ __forceinline__ concurrent_slab<KeyT, ValueT>* getDeviceTablePointer() {
+    return d_table_;
   }
 
   void bulk_build(KeyT* d_key, ValueT* d_value, uint32_t num_keys) {

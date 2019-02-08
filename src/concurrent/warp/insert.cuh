@@ -14,15 +14,14 @@
  * limitations under the License.
  */
 
+#pragma once
+#include "slab_hash_global.cuh"
+
 /*
  * each thread inserts a key-value pair into the hash table
  * it is assumed all threads within a warp are present and collaborating with
  * each other with a warp-cooperative work sharing (WCWS) strategy.
  */
-
-#pragma once
-#include "slab_hash_global.cuh"
-
 template <typename KeyT, typename ValueT>
 __device__ __forceinline__ void insert_pair(
     bool& to_be_inserted,
@@ -30,24 +29,24 @@ __device__ __forceinline__ void insert_pair(
     KeyT& myKey,
     ValueT& myValue,
     uint32_t bucket_id,
-    concurrent_slab<KeyT, ValueT>* d_buckets
+    GpuSlabHash<KeyT, ValueT, SlabHashType::ConcurrentMap>& slab_hash
     /*slab_alloc::context_alloc<1>& context*/) {
   uint32_t work_queue = 0;
   uint32_t last_work_queue = 0;
   uint32_t next = A_INDEX_POINTER;
 
-  while ((work_queue = __ballot(to_be_inserted))) {
+  while ((work_queue = __ballot_sync(0xFFFFFFFF, to_be_inserted))) {
     // to know whether it is a base node, or a regular node
     next = (last_work_queue != work_queue)
                ? A_INDEX_POINTER
                : next;  // a successfull insertion in the warp
     uint32_t src_lane = __ffs(work_queue) - 1;
-    uint32_t src_bucket = __shfl(bucket_id, src_lane, 32);
+    uint32_t src_bucket = __shfl_sync(0xFFFFFFFF, bucket_id, src_lane, 32);
 
     uint32_t src_unit_data =
         (next == A_INDEX_POINTER)
-            ? *(reinterpret_cast<uint32_t*>(
-                    reinterpret_cast<unsigned char*>(d_buckets)) +
+            ? *(reinterpret_cast<uint32_t*>(reinterpret_cast<unsigned char*>(
+                    slab_hash.getDeviceTablePointer() /*d_buckets*/)) +
                 (src_bucket * BASE_UNIT_SIZE + laneId))
             : 0 /* *(reinterpret_cast<uint32_t*>(
                     reinterpret_cast<unsigned char*>(context.d_super_blocks)) +
@@ -59,7 +58,7 @@ __device__ __forceinline__ void insert_pair(
     uint32_t isEmpty =
         (__ballot(src_unit_data == EMPTY_KEY)) & REGULAR_NODE_KEY_MASK;
     if (isEmpty == 0) {  // no empty slot available:
-      uint32_t next_ptr = __shfl(src_unit_data, 31, 32);
+      uint32_t next_ptr = __shfl_sync(0xFFFFFFFF, src_unit_data, 31, 32);
       if (next_ptr == EMPTY_INDEX_POINTER) {
         // allocate a new node:
         uint32_t new_node_ptr =
@@ -68,7 +67,8 @@ __device__ __forceinline__ void insert_pair(
         if (laneId == 31) {
           uint32_t* p = (next == A_INDEX_POINTER)
                             ? reinterpret_cast<uint32_t*>(
-                                  reinterpret_cast<unsigned char*>(d_buckets)) +
+                                  reinterpret_cast<unsigned char*>(
+                                      slab_hash.getDeviceTablePointer() /*d_buckets*/)) +
                                   (src_bucket * BASE_UNIT_SIZE + 31)
                             : nullptr /* reinterpret_cast<uint32_t*>(
                                   reinterpret_cast<unsigned char*>(
@@ -93,7 +93,8 @@ __device__ __forceinline__ void insert_pair(
           uint32_t* p =
               (next == A_INDEX_POINTER)
                   ? reinterpret_cast<uint32_t*>(
-                        reinterpret_cast<unsigned char*>(d_buckets)) +
+                        reinterpret_cast<unsigned char*>(
+                            slab_hash.getDeviceTablePointer() /*d_buckets*/)) +
                         (src_bucket * BASE_UNIT_SIZE + dest_lane)
                   : nullptr /* reinterpret_cast<uint32_t*>(reinterpret_cast<unsigned
                         char*>( context.d_super_blocks)) +
@@ -113,3 +114,4 @@ __device__ __forceinline__ void insert_pair(
       last_work_queue = work_queue;
     }
   }
+}
