@@ -24,6 +24,7 @@ class gpu_hash_table {
   uint32_t max_keys_;
   uint32_t num_keys_;
   uint32_t num_buckets_;
+  int64_t seed_;
   // size_t allocator_heap_size_;
 
   GpuSlabHash<KeyT, ValueT, SlabHashType::ConcurrentMap>* slab_hash_;
@@ -36,10 +37,12 @@ class gpu_hash_table {
   ValueT* d_result_;
 
   gpu_hash_table(uint32_t max_keys,
-                 uint32_t num_buckets
+                 uint32_t num_buckets, 
+                 const int64_t seed
                  /*uint32_t max_allocator_size*/)
       : max_keys_(max_keys),
         num_buckets_(num_buckets),
+        seed_(seed),
         // allocator_heap_size_(max_allocator_size),
         slab_hash_(nullptr) {
     std::cout << "gpu_hash_table constructor called.\n";
@@ -52,7 +55,7 @@ class gpu_hash_table {
 
     // slab hash:
     slab_hash_ = new GpuSlabHash<KeyT, ValueT, SlabHashType::ConcurrentMap>(
-        num_buckets_ /*, allocator_heap_size_*/);
+        num_buckets_ /*, allocator_heap_size_*/, seed_);
     std::cout << slab_hash_->to_string() << std::endl;
   }
 

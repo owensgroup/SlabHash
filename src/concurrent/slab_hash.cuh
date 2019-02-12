@@ -20,8 +20,8 @@
 #include <iostream>
 #include <random>
 
-#include "slab_hash_global.cuh"
 #include "concurrent/device/build.cuh"
+#include "slab_hash_global.cuh"
 
 template <typename KeyT, typename ValueT>
 class GpuSlabHash<KeyT, ValueT, SlabHashType::ConcurrentMap> {
@@ -45,7 +45,8 @@ class GpuSlabHash<KeyT, ValueT, SlabHashType::ConcurrentMap> {
   // dynamic memory allocator:
   // slab_alloc::context_alloc<1> ctx_alloc_;
  public:
-  GpuSlabHash(const uint32_t num_buckets) : num_buckets_(num_buckets), d_table_(nullptr) {
+  GpuSlabHash(const uint32_t num_buckets, const time_t seed = 0)
+      : num_buckets_(num_buckets), d_table_(nullptr) {
     std::cout << " == slab hash concstructor called" << std::endl;
 
     // a single slab on a ConcurrentMap should be 128 bytes
@@ -61,7 +62,7 @@ class GpuSlabHash<KeyT, ValueT, SlabHashType::ConcurrentMap> {
         d_table_, 0xFF, sizeof(concurrent_slab<KeyT, ValueT>) * num_buckets_));
 
     // creating a random number generator:
-    std::mt19937 rng(time(0));
+    std::mt19937 rng(seed ? seed : time(0));
     hf_.x = rng() % PRIME_DIVISOR_;
     if (hf_.x < 1)
       hf_.x = 1;
@@ -78,7 +79,8 @@ class GpuSlabHash<KeyT, ValueT, SlabHashType::ConcurrentMap> {
     return (((hf_.x ^ key) + hf_.y) % PRIME_DIVISOR_) % num_buckets_;
   }
 
-  __device__ __host__ __forceinline__ concurrent_slab<KeyT, ValueT>* getDeviceTablePointer() {
+  __device__ __host__ __forceinline__ concurrent_slab<KeyT, ValueT>*
+  getDeviceTablePointer() {
     return d_table_;
   }
 
@@ -87,8 +89,8 @@ class GpuSlabHash<KeyT, ValueT, SlabHashType::ConcurrentMap> {
     // calling the kernel for bulk build:
     // build_table_kernel<KeyT, ValueT><<<num_blocks, BLOCKSIZE_>>>(
     //     d_key, d_value, num_keys, d_table_, num_buckets_, ctx_alloc_, hf_);
-    build_table_kernel<KeyT, ValueT><<<num_blocks, BLOCKSIZE_>>>(
-        d_key, d_value, num_keys, *this);    
+    build_table_kernel<KeyT, ValueT>
+        <<<num_blocks, BLOCKSIZE_>>>(d_key, d_value, num_keys, *this);
   }
 };
 
