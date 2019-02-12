@@ -61,5 +61,8 @@ struct __align__(32) concurrent_slab {
  */
 enum class SlabHashType { ConcurrentMap, PhaseConcurrentMap };
 
-template <typename KeyT, typename ValueT, SlabHashType SlabHashT>
+template <typename KeyT,
+          typename ValueT,
+          uint32_t DEVICE_IDX,
+          SlabHashType SlabHashT>
 class GpuSlabHash;

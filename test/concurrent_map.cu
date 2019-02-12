@@ -100,7 +100,7 @@ int main(int argc, char** argv) {
   // // permuting the queries:
   // randomPermutePairs(h_query, h_correct_result, num_queries);
 
-  gpu_hash_table<KeyT, ValueT> hash_table(num_keys, num_buckets, seed
+  gpu_hash_table<KeyT, ValueT, DEVICE_ID> hash_table(num_keys, num_buckets, seed
                                           /*max_allocator_size*/);
   // float init_time = hash_table.init();
   // printf("Init time = %.3f\n", init_time);

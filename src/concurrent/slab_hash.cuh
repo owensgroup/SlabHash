@@ -23,8 +23,8 @@
 #include "concurrent/device/build.cuh"
 #include "slab_hash_global.cuh"
 
-template <typename KeyT, typename ValueT>
-class GpuSlabHash<KeyT, ValueT, SlabHashType::ConcurrentMap> {
+template <typename KeyT, typename ValueT, uint32_t DEVICE_IDX>
+class GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashType::ConcurrentMap> {
  private:
   // fixed known parameters:
   static constexpr uint32_t BLOCKSIZE_ = 128;
@@ -53,6 +53,12 @@ class GpuSlabHash<KeyT, ValueT, SlabHashType::ConcurrentMap> {
     assert(sizeof(concurrent_slab<KeyT, ValueT>) ==
            (WARP_WIDTH_ * sizeof(uint32_t)));
 
+    int32_t devCount = 0;
+    CHECK_CUDA_ERROR(cudaGetDeviceCount(&devCount));
+    assert(DEVICE_IDX < devCount);
+
+    CHECK_CUDA_ERROR(cudaSetDevice(DEVICE_IDX));
+
     // allocating initial buckets:
     CHECK_CUDA_ERROR(
         cudaMalloc((void**)&d_table_,
@@ -69,7 +75,10 @@ class GpuSlabHash<KeyT, ValueT, SlabHashType::ConcurrentMap> {
     hf_.y = rng() % PRIME_DIVISOR_;
   }
 
-  ~GpuSlabHash() { CHECK_CUDA_ERROR(cudaFree(d_table_)); }
+  ~GpuSlabHash() {
+    CHECK_CUDA_ERROR(cudaSetDevice(DEVICE_IDX));
+    CHECK_CUDA_ERROR(cudaFree(d_table_));
+  }
 
   // returns some debug information about the slab hash
   std::string to_string();
@@ -94,11 +103,12 @@ class GpuSlabHash<KeyT, ValueT, SlabHashType::ConcurrentMap> {
   }
 };
 
-template <typename KeyT, typename ValueT>
-std::string
-GpuSlabHash<KeyT, ValueT, SlabHashType::ConcurrentMap>::to_string() {
+template <typename KeyT, typename ValueT, uint32_t DEVICE_IDX>
+std::string GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashType::ConcurrentMap>::
+    to_string() {
   std::string result;
   result += " ==== GpuSlabHash: \n";
+  result += "\t Running on device \t\t " + std::to_string(DEVICE_IDX) + "\n";
   result += "\t SlabHashType:     \t\t ConcurrentMap\n";
   result += "\t Number of buckets:\t\t " + std::to_string(num_buckets_) + "\n";
   result +=
