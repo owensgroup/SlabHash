@@ -55,8 +55,8 @@ __device__ __forceinline__ void insert_pair(
 
     uint64_t old_key_value_pair = 0;
 
-    uint32_t isEmpty =
-        (__ballot(src_unit_data == EMPTY_KEY)) & REGULAR_NODE_KEY_MASK;
+    uint32_t isEmpty = (__ballot_sync(0xFFFFFFFF, src_unit_data == EMPTY_KEY)) &
+                       REGULAR_NODE_KEY_MASK;
     if (isEmpty == 0) {  // no empty slot available:
       uint32_t next_ptr = __shfl_sync(0xFFFFFFFF, src_unit_data, 31, 32);
       if (next_ptr == EMPTY_INDEX_POINTER) {
@@ -65,15 +65,16 @@ __device__ __forceinline__ void insert_pair(
             0 /*slab_alloc::warp_allocate<1>(context, laneId)*/;
         // TODO: experiment if it's better to use lane 0 instead
         if (laneId == 31) {
-          uint32_t* p = (next == A_INDEX_POINTER)
-                            ? reinterpret_cast<uint32_t*>(
-                                  reinterpret_cast<unsigned char*>(
-                                      slab_hash.getDeviceTablePointer() /*d_buckets*/)) +
-                                  (src_bucket * BASE_UNIT_SIZE + 31)
-                            : nullptr /* reinterpret_cast<uint32_t*>(
-                                  reinterpret_cast<unsigned char*>(
-                                      context.d_super_blocks) +
-                                  (slab_alloc::address_decoder<1>(next) + 31))*/
+          uint32_t* p =
+              (next == A_INDEX_POINTER)
+                  ? reinterpret_cast<uint32_t*>(
+                        reinterpret_cast<unsigned char*>(
+                            slab_hash.getDeviceTablePointer() /*d_buckets*/)) +
+                        (src_bucket * BASE_UNIT_SIZE + 31)
+                  : nullptr /* reinterpret_cast<uint32_t*>(
+                        reinterpret_cast<unsigned char*>(
+                            context.d_super_blocks) +
+                        (slab_alloc::address_decoder<1>(next) + 31))*/
               ;
 
           uint32_t temp =
@@ -82,36 +83,34 @@ __device__ __forceinline__ void insert_pair(
           // free the allocated memory otherwise
           /* == temp: if (temp != EMPTY_INDEX_POINTER)
 
-            slab_alloc::free_untouched<1>(context, new_node_ptr);
-        } */
-        } else {
-          next = next_ptr;
+            slab_alloc::free_untouched<1>(context, new_node_ptr);*/
         }
-      } else {  // there is an empty slot available
-        int dest_lane = __ffs(isEmpty & REGULAR_NODE_KEY_MASK) - 1;
-        if (laneId == src_lane) {
-          uint32_t* p =
-              (next == A_INDEX_POINTER)
-                  ? reinterpret_cast<uint32_t*>(
-                        reinterpret_cast<unsigned char*>(
-                            slab_hash.getDeviceTablePointer() /*d_buckets*/)) +
-                        (src_bucket * BASE_UNIT_SIZE + dest_lane)
-                  : nullptr /* reinterpret_cast<uint32_t*>(reinterpret_cast<unsigned
-                        char*>( context.d_super_blocks)) +
-                        (slab_alloc::address_decoder<1>(next) + dest_lane)*/
-              ;
-          old_key_value_pair =
-              atomicCAS((unsigned long long int*)p, EMPTY_PAIR_64,
-                        ((uint64_t)(*reinterpret_cast<uint32_t*>(
-                             reinterpret_cast<unsigned char*>(&myValue)))
-                         << 32) |
-                            *reinterpret_cast<uint32_t*>(
-                                reinterpret_cast<unsigned char*>(&myKey)));
-          if (old_key_value_pair == EMPTY_PAIR_64)
-            to_be_inserted = false;  // succesfful insertion
-        }
+      } else {
+        next = next_ptr;
       }
-      last_work_queue = work_queue;
+    } else {  // there is an empty slot available
+      int dest_lane = __ffs(isEmpty & REGULAR_NODE_KEY_MASK) - 1;
+      if (laneId == src_lane) {
+        uint32_t* p =
+            (next == A_INDEX_POINTER)
+                ? reinterpret_cast<uint32_t*>(reinterpret_cast<unsigned char*>(
+                      slab_hash.getDeviceTablePointer() /*d_buckets*/)) +
+                      (src_bucket * BASE_UNIT_SIZE + dest_lane)
+                : nullptr /* reinterpret_cast<uint32_t*>(reinterpret_cast<unsigned
+                      char*>( context.d_super_blocks)) +
+                      (slab_alloc::address_decoder<1>(next) + dest_lane)*/
+            ;
+        old_key_value_pair =
+            atomicCAS((unsigned long long int*)p, EMPTY_PAIR_64,
+                      ((uint64_t)(*reinterpret_cast<uint32_t*>(
+                           reinterpret_cast<unsigned char*>(&myValue)))
+                       << 32) |
+                          *reinterpret_cast<uint32_t*>(
+                              reinterpret_cast<unsigned char*>(&myKey)));
+        if (old_key_value_pair == EMPTY_PAIR_64)
+          to_be_inserted = false;  // succesfful insertion
+      }
     }
+    last_work_queue = work_queue;
   }
 }
