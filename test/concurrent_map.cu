@@ -68,7 +68,8 @@ int main(int argc, char** argv) {
   const auto f = [](const KeyT& key) { return key * 10; };
 
   std::random_device rd;
-  std::mt19937 rng(rd());
+  const int64_t seed = 1;
+  std::mt19937 rng(seed);
   std::vector<uint32_t> index(num_elements);
   std::iota(index.begin(), index.end(), 0);
   std::shuffle(index.begin(), index.end(), rng);
@@ -99,7 +100,7 @@ int main(int argc, char** argv) {
   // // permuting the queries:
   // randomPermutePairs(h_query, h_correct_result, num_queries);
 
-  gpu_hash_table<KeyT, ValueT> hash_table(num_keys, num_buckets
+  gpu_hash_table<KeyT, ValueT> hash_table(num_keys, num_buckets, seed
                                           /*max_allocator_size*/);
   // float init_time = hash_table.init();
   // printf("Init time = %.3f\n", init_time);
