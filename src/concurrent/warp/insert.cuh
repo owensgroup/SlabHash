@@ -22,14 +22,14 @@
  * it is assumed all threads within a warp are present and collaborating with
  * each other with a warp-cooperative work sharing (WCWS) strategy.
  */
-template <typename KeyT, typename ValueT>
+template <typename KeyT, typename ValueT, uint32_t DEVICE_IDX>
 __device__ __forceinline__ void insert_pair(
     bool& to_be_inserted,
     uint32_t& laneId,
     KeyT& myKey,
     ValueT& myValue,
     uint32_t bucket_id,
-    GpuSlabHash<KeyT, ValueT, SlabHashType::ConcurrentMap>& slab_hash
+    GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashType::ConcurrentMap>& slab_hash
     /*slab_alloc::context_alloc<1>& context*/) {
   uint32_t work_queue = 0;
   uint32_t last_work_queue = 0;
@@ -52,7 +52,6 @@ __device__ __forceinline__ void insert_pair(
                     reinterpret_cast<unsigned char*>(context.d_super_blocks)) +
                 slab_alloc::address_decoder<1>(next) + laneId) */
         ;
-
     uint64_t old_key_value_pair = 0;
 
     uint32_t isEmpty = (__ballot_sync(0xFFFFFFFF, src_unit_data == EMPTY_KEY)) &
@@ -100,7 +99,8 @@ __device__ __forceinline__ void insert_pair(
                       char*>( context.d_super_blocks)) +
                       (slab_alloc::address_decoder<1>(next) + dest_lane)*/
             ;
-        old_key_value_pair =
+
+        old_key_value_pair = 
             atomicCAS((unsigned long long int*)p, EMPTY_PAIR_64,
                       ((uint64_t)(*reinterpret_cast<uint32_t*>(
                            reinterpret_cast<unsigned char*>(&myValue)))

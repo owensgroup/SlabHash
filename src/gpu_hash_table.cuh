@@ -18,7 +18,7 @@
 #include "slab_hash_global.cuh"
 #include "concurrent/slab_hash.cuh"
  
-template <typename KeyT, typename ValueT>
+template <typename KeyT, typename ValueT, uint32_t DEVICE_IDX>
 class gpu_hash_table {
  private:
   uint32_t max_keys_;
@@ -27,7 +27,8 @@ class gpu_hash_table {
   int64_t seed_;
   // size_t allocator_heap_size_;
 
-  GpuSlabHash<KeyT, ValueT, SlabHashType::ConcurrentMap>* slab_hash_;
+  GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashType::ConcurrentMap>*
+      slab_hash_;
 
  public:
   // main arrays to hold keys, values, queries, results, etc.
@@ -46,6 +47,13 @@ class gpu_hash_table {
         // allocator_heap_size_(max_allocator_size),
         slab_hash_(nullptr) {
     std::cout << "gpu_hash_table constructor called.\n";
+
+    int32_t devCount = 0;
+    CHECK_CUDA_ERROR(cudaGetDeviceCount(&devCount));
+    assert(DEVICE_IDX < devCount);
+
+    CHECK_CUDA_ERROR(cudaSetDevice(DEVICE_IDX));
+
     // allocating key, value arrays:
     CHECK_CUDA_ERROR(cudaMalloc((void**)&d_key_, sizeof(KeyT) * max_keys_));
     CHECK_CUDA_ERROR(cudaMalloc((void**)&d_value_, sizeof(ValueT) * max_keys_));
@@ -54,12 +62,13 @@ class gpu_hash_table {
         cudaMalloc((void**)&d_result_, sizeof(ValueT) * max_keys_));
 
     // slab hash:
-    slab_hash_ = new GpuSlabHash<KeyT, ValueT, SlabHashType::ConcurrentMap>(
+    slab_hash_ = new GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashType::ConcurrentMap>(
         num_buckets_ /*, allocator_heap_size_*/, seed_);
     std::cout << slab_hash_->to_string() << std::endl;
   }
 
   ~gpu_hash_table() {
+    CHECK_CUDA_ERROR(cudaSetDevice(DEVICE_IDX));
     CHECK_CUDA_ERROR(cudaFree(d_key_));
     CHECK_CUDA_ERROR(cudaFree(d_value_));
     CHECK_CUDA_ERROR(cudaFree(d_query_));
@@ -71,6 +80,7 @@ class gpu_hash_table {
 
   float hash_build(KeyT* h_key, ValueT* h_value, uint32_t num_keys) {
     // moving key-values to the device:
+    CHECK_CUDA_ERROR(cudaSetDevice(DEVICE_IDX));
     CHECK_CUDA_ERROR(cudaMemcpy(d_key_, h_key, sizeof(KeyT) * num_keys,
                                 cudaMemcpyHostToDevice));
     CHECK_CUDA_ERROR(cudaMemcpy(d_value_, h_value, sizeof(ValueT) * num_keys,

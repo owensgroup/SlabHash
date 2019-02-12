@@ -21,12 +21,12 @@
 /*
  *
  */
-template <typename KeyT, typename ValueT>
+template <typename KeyT, typename ValueT, uint32_t DEVICE_IDX>
 __global__ void build_table_kernel(
     KeyT* d_key,
     ValueT* d_value,
     uint32_t num_keys,
-    GpuSlabHash<KeyT, ValueT, SlabHashType::ConcurrentMap> slab_hash
+    GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashType::ConcurrentMap> slab_hash
     /*concurrent_slab<KeyT, ValueT>* d_table,
     uint32_t num_buckets,
     /*slab_alloc::context_alloc<1> context,*/
@@ -52,6 +52,7 @@ __global__ void build_table_kernel(
     myBucket = slab_hash.computeBucket(myKey);
     to_insert = true;
   }
+
 
   // TODO: make this a member function of slab_hash
   insert_pair<KeyT, ValueT>(to_insert, laneId, myKey, myValue, myBucket,
