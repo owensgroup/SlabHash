@@ -66,3 +66,8 @@ template <typename KeyT,
           uint32_t DEVICE_IDX,
           SlabHashType SlabHashT>
 class GpuSlabHash;
+
+template <typename KeyT,
+          typename ValueT,
+          SlabHashType SlabHashT>
+struct GpuSlabHashContext;

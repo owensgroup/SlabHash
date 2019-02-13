@@ -17,12 +17,11 @@
 #pragma once
 #include "slab_hash_global.cuh"
 #include "concurrent/slab_hash.cuh"
- 
+
 template <typename KeyT, typename ValueT, uint32_t DEVICE_IDX>
 class gpu_hash_table {
  private:
   uint32_t max_keys_;
-  uint32_t num_keys_;
   uint32_t num_buckets_;
   int64_t seed_;
   // size_t allocator_heap_size_;
@@ -46,8 +45,6 @@ class gpu_hash_table {
         seed_(seed),
         // allocator_heap_size_(max_allocator_size),
         slab_hash_(nullptr) {
-    std::cout << "gpu_hash_table constructor called.\n";
-
     int32_t devCount = 0;
     CHECK_CUDA_ERROR(cudaGetDeviceCount(&devCount));
     assert(DEVICE_IDX < devCount);
@@ -85,8 +82,6 @@ class gpu_hash_table {
                                 cudaMemcpyHostToDevice));
     CHECK_CUDA_ERROR(cudaMemcpy(d_value_, h_value, sizeof(ValueT) * num_keys,
                                 cudaMemcpyHostToDevice));
-
-    num_keys_ = num_keys;
 
     float temp_time = 0.0f;
 

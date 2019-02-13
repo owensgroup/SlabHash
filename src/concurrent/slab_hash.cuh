@@ -23,6 +23,50 @@
 #include "concurrent/device/build.cuh"
 #include "slab_hash_global.cuh"
 
+/*
+ * This is the main class that will be shallowly copied into the device to be
+ * used at runtime this struct does not own the allocated memories on the gpu
+ * (i.e., d_table_)
+ */
+template <typename KeyT, typename ValueT>
+class GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap> {
+ public:
+  // fixed known parameters:
+  static constexpr uint32_t PRIME_DIVISOR_ = 4294967291u;
+
+  GpuSlabHashContext()
+      : num_buckets_(0), hash_x_(0), hash_y_(0), d_table_(nullptr) {}
+
+  __device__ __host__ __forceinline__ uint32_t
+  computeBucket(const KeyT& key) const {
+    return (((hash_x_ ^ key) + hash_y_) % PRIME_DIVISOR_) % num_buckets_;
+  }
+
+  __device__ __host__ __forceinline__ concurrent_slab<KeyT, ValueT>*
+  getDeviceTablePointer() {
+    return d_table_;
+  }
+
+  __host__ void initParameters(const uint32_t num_buckets,
+                               const uint32_t hash_x,
+                               const uint32_t hash_y,
+                               concurrent_slab<KeyT, ValueT>* d_table) {
+    num_buckets_ = num_buckets;
+    hash_x_ = hash_x;
+    hash_y_ = hash_y;
+    d_table_ = d_table;
+  }
+
+ private:
+  uint32_t num_buckets_;
+  uint32_t hash_x_;
+  uint32_t hash_y_;
+  concurrent_slab<KeyT, ValueT>* d_table_;
+};
+
+/*
+ * This struct owns the allocated memory for the hash table
+ */
 template <typename KeyT, typename ValueT, uint32_t DEVICE_IDX>
 class GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashType::ConcurrentMap> {
  private:
@@ -31,24 +75,18 @@ class GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashType::ConcurrentMap> {
   static constexpr uint32_t WARP_WIDTH_ = 32;
   static constexpr uint32_t PRIME_DIVISOR_ = 4294967291u;
 
-  // the used hash function:
-  uint32_t num_buckets_;
-  // size_t 		allocator_heap_size_;
-
   struct hash_function {
     uint32_t x;
     uint32_t y;
   } hf_;
 
-  // bucket data structures:
+  uint32_t num_buckets_;
   concurrent_slab<KeyT, ValueT>* d_table_;
-  // dynamic memory allocator:
-  // slab_alloc::context_alloc<1> ctx_alloc_;
+  GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap> gpu_context_;
+
  public:
   GpuSlabHash(const uint32_t num_buckets, const time_t seed = 0)
       : num_buckets_(num_buckets), d_table_(nullptr) {
-    std::cout << " == slab hash concstructor called" << std::endl;
-
     // a single slab on a ConcurrentMap should be 128 bytes
     assert(sizeof(concurrent_slab<KeyT, ValueT>) ==
            (WARP_WIDTH_ * sizeof(uint32_t)));
@@ -73,6 +111,9 @@ class GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashType::ConcurrentMap> {
     if (hf_.x < 1)
       hf_.x = 1;
     hf_.y = rng() % PRIME_DIVISOR_;
+
+    // initializing the gpu_context_:
+    gpu_context_.initParameters(num_buckets_, hf_.x, hf_.y, d_table_);
   }
 
   ~GpuSlabHash() {
@@ -83,23 +124,14 @@ class GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashType::ConcurrentMap> {
   // returns some debug information about the slab hash
   std::string to_string();
 
-  __device__ __host__ __forceinline__ uint32_t
-  computeBucket(const KeyT& key) const {
-    return (((hf_.x ^ key) + hf_.y) % PRIME_DIVISOR_) % num_buckets_;
-  }
-
-  __device__ __host__ __forceinline__ concurrent_slab<KeyT, ValueT>*
-  getDeviceTablePointer() {
-    return d_table_;
-  }
-
   void bulk_build(KeyT* d_key, ValueT* d_value, uint32_t num_keys) {
     uint32_t num_blocks = (num_keys + BLOCKSIZE_ - 1) / BLOCKSIZE_;
     // calling the kernel for bulk build:
     // build_table_kernel<KeyT, ValueT><<<num_blocks, BLOCKSIZE_>>>(
     //     d_key, d_value, num_keys, d_table_, num_buckets_, ctx_alloc_, hf_);
+    CHECK_CUDA_ERROR(cudaSetDevice(DEVICE_IDX));
     build_table_kernel<KeyT, ValueT>
-        <<<num_blocks, BLOCKSIZE_>>>(d_key, d_value, num_keys, *this);
+        <<<num_blocks, BLOCKSIZE_>>>(d_key, d_value, num_keys, gpu_context_);
   }
 };
 

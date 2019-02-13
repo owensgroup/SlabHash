@@ -100,8 +100,9 @@ int main(int argc, char** argv) {
   // // permuting the queries:
   // randomPermutePairs(h_query, h_correct_result, num_queries);
 
+  // auto gpu_hash_table_ptr = new gpu_hash_table<KeyT, ValueT, DEVICE_ID>(num_keys, num_buckets, seed);
   gpu_hash_table<KeyT, ValueT, DEVICE_ID> hash_table(num_keys, num_buckets, seed
-                                          /*max_allocator_size*/);
+                                            /*max_allocator_size*/);
   // float init_time = hash_table.init();
   // printf("Init time = %.3f\n", init_time);
 
@@ -110,7 +111,8 @@ int main(int argc, char** argv) {
   // my_hash_table::gpu_hash_table hash_table(num_keys, num_buckets,
   // max_allocator_size); float init_time = hash_table.init();
   float build_time =
-      hash_table.hash_build(h_key.data(), h_value.data(), num_keys);
+        hash_table.hash_build(h_key.data(), h_value.data(), num_keys);
+      // gpu_hash_table_ptr->hash_build(h_key.data(), h_value.data(), num_keys);
   // float search_time = hash_table.hash_search(h_query, h_result, num_queries);
   // float search_time_bulk = hash_table.hash_search_bulk(h_query, h_result,
   // num_queries);
@@ -157,4 +159,5 @@ int main(int argc, char** argv) {
   // delete[] h_result;
   // delete[] h_correct_result;
   // delete[] h_query;
+  // delete gpu_hash_table_ptr;
 }
