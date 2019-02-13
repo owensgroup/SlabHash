@@ -22,14 +22,14 @@
  * it is assumed all threads within a warp are present and collaborating with
  * each other with a warp-cooperative work sharing (WCWS) strategy.
  */
-template <typename KeyT, typename ValueT, uint32_t DEVICE_IDX>
+template <typename KeyT, typename ValueT>
 __device__ __forceinline__ void insert_pair(
     bool& to_be_inserted,
     uint32_t& laneId,
     KeyT& myKey,
     ValueT& myValue,
     uint32_t bucket_id,
-    GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashType::ConcurrentMap>& slab_hash
+    GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap>& slab_hash
     /*slab_alloc::context_alloc<1>& context*/) {
   uint32_t work_queue = 0;
   uint32_t last_work_queue = 0;

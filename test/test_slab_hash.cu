@@ -35,6 +35,11 @@ int main(int argc, char** argv) {
   printf("Device: %s\n", devProp.name);
 
   auto my_hash_table = new gpu_hash_table<uint32_t, uint32_t, DEVICE_ID>(100, 10, /*seed = */ 1);
+
+  std::vector<uint32_t> h_key {10,5,1};
+  std::vector<uint32_t> h_value {100,50,10};
+
+  my_hash_table->hash_build(h_key.data(), h_value.data(), h_key.size());
   // auto slab_alloc = new SlabAllocLight<8, 32, 1>();
   // printf("slab alloc constructed\n");
 
