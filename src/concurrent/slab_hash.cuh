@@ -50,11 +50,13 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap> {
   __host__ void initParameters(const uint32_t num_buckets,
                                const uint32_t hash_x,
                                const uint32_t hash_y,
-                               concurrent_slab<KeyT, ValueT>* d_table) {
+                               concurrent_slab<KeyT, ValueT>* d_table,
+                               AllocatorContextT* allocator_ctx) {
     num_buckets_ = num_buckets;
     hash_x_ = hash_x;
     hash_y_ = hash_y;
     d_table_ = d_table;
+    dynamic_allocator_ = *allocator_ctx;
   }
 
  private:
@@ -62,6 +64,8 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap> {
   uint32_t hash_x_;
   uint32_t hash_y_;
   concurrent_slab<KeyT, ValueT>* d_table_;
+  // a copy of dynamic allocator's context to be used on the GPU
+  AllocatorContextT dynamic_allocator_;
 };
 
 /*
@@ -92,11 +96,11 @@ class GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashType::ConcurrentMap> {
 
   // const pointer to an allocator that all instances of slab hash are going to
   // use. The allocator itself is not owned by this class
-  const DynamicAllocatorT* dynamic_allocator_;
+  DynamicAllocatorT* dynamic_allocator_;
 
  public:
   GpuSlabHash(const uint32_t num_buckets,
-              const DynamicAllocatorT* dynamic_allocator,
+              DynamicAllocatorT* dynamic_allocator,
               const time_t seed = 0)
       : num_buckets_(num_buckets),
         d_table_(nullptr),
@@ -127,7 +131,8 @@ class GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashType::ConcurrentMap> {
     hf_.y = rng() % PRIME_DIVISOR_;
 
     // initializing the gpu_context_:
-    gpu_context_.initParameters(num_buckets_, hf_.x, hf_.y, d_table_);
+    gpu_context_.initParameters(num_buckets_, hf_.x, hf_.y, d_table_,
+                                dynamic_allocator_->getContextPtr());
   }
 
   ~GpuSlabHash() {
