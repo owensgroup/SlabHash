@@ -83,3 +83,8 @@ constexpr uint32_t num_replicas = 1;
 using DynamicAllocatorT = SlabAllocLight<slab_alloc_par::log_num_mem_blocks,
                                          slab_alloc_par::num_super_blocks,
                                          slab_alloc_par::num_replicas>;
+
+using AllocatorContextT =
+    SlabAllocLightContext<slab_alloc_par::log_num_mem_blocks,
+                          slab_alloc_par::num_super_blocks,
+                          slab_alloc_par::num_replicas>;

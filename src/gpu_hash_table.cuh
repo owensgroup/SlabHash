@@ -30,7 +30,7 @@ class gpu_hash_table {
       slab_hash_;
 
   // the dynamic allocator that is being used for slab hash
-  const DynamicAllocatorT* dynamic_allocator_;
+  DynamicAllocatorT* dynamic_allocator_;
 
  public:
   // main arrays to hold keys, values, queries, results, etc.
