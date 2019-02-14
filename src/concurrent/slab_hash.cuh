@@ -25,7 +25,7 @@
 
 /*
  * This is the main class that will be shallowly copied into the device to be
- * used at runtime this struct does not own the allocated memories on the gpu
+ * used at runtime. This class does not own the allocated memories on the gpu
  * (i.e., d_table_)
  */
 template <typename KeyT, typename ValueT>
@@ -65,7 +65,7 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap> {
 };
 
 /*
- * This struct owns the allocated memory for the hash table
+ * This class owns the allocated memory for the hash table
  */
 template <typename KeyT, typename ValueT, uint32_t DEVICE_IDX>
 class GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashType::ConcurrentMap> {
@@ -80,13 +80,27 @@ class GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashType::ConcurrentMap> {
     uint32_t y;
   } hf_;
 
+  // total number of buckets (slabs) for this hash table
   uint32_t num_buckets_;
+
+  // a raw pointer to the initial allocated memory for all buckets
   concurrent_slab<KeyT, ValueT>* d_table_;
+
+  // slab hash context, contains everything that a GPU application needs to be
+  // able to use this data structure
   GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap> gpu_context_;
 
+  // const pointer to an allocator that all instances of slab hash are going to
+  // use. The allocator itself is not owned by this class
+  const DynamicAllocatorT* dynamic_allocator_;
+
  public:
-  GpuSlabHash(const uint32_t num_buckets, const time_t seed = 0)
-      : num_buckets_(num_buckets), d_table_(nullptr) {
+  GpuSlabHash(const uint32_t num_buckets,
+              const DynamicAllocatorT* dynamic_allocator,
+              const time_t seed = 0)
+      : num_buckets_(num_buckets),
+        d_table_(nullptr),
+        dynamic_allocator_(dynamic_allocator) {
     // a single slab on a ConcurrentMap should be 128 bytes
     assert(sizeof(concurrent_slab<KeyT, ValueT>) ==
            (WARP_WIDTH_ * sizeof(uint32_t)));

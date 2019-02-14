@@ -15,8 +15,8 @@
  */
 
 #pragma once
-#include "slab_hash_global.cuh"
 #include "concurrent/slab_hash.cuh"
+#include "slab_hash_global.cuh"
 
 template <typename KeyT, typename ValueT, uint32_t DEVICE_IDX>
 class gpu_hash_table {
@@ -29,6 +29,9 @@ class gpu_hash_table {
   GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashType::ConcurrentMap>*
       slab_hash_;
 
+  // the dynamic allocator that is being used for slab hash
+  const DynamicAllocatorT* dynamic_allocator_;
+
  public:
   // main arrays to hold keys, values, queries, results, etc.
   KeyT* d_key_;
@@ -36,15 +39,12 @@ class gpu_hash_table {
   KeyT* d_query_;
   ValueT* d_result_;
 
-  gpu_hash_table(uint32_t max_keys,
-                 uint32_t num_buckets, 
-                 const int64_t seed
-                 /*uint32_t max_allocator_size*/)
+  gpu_hash_table(uint32_t max_keys, uint32_t num_buckets, const int64_t seed)
       : max_keys_(max_keys),
         num_buckets_(num_buckets),
         seed_(seed),
-        // allocator_heap_size_(max_allocator_size),
-        slab_hash_(nullptr) {
+        slab_hash_(nullptr),
+        dynamic_allocator_(nullptr) {
     int32_t devCount = 0;
     CHECK_CUDA_ERROR(cudaGetDeviceCount(&devCount));
     assert(DEVICE_IDX < devCount);
@@ -58,9 +58,13 @@ class gpu_hash_table {
     CHECK_CUDA_ERROR(
         cudaMalloc((void**)&d_result_, sizeof(ValueT) * max_keys_));
 
+    // allocate an initialize the allocator:
+    dynamic_allocator_ = new DynamicAllocatorT();
+
     // slab hash:
-    slab_hash_ = new GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashType::ConcurrentMap>(
-        num_buckets_ /*, allocator_heap_size_*/, seed_);
+    slab_hash_ =
+        new GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashType::ConcurrentMap>(
+            num_buckets_, dynamic_allocator_, seed_);
     std::cout << slab_hash_->to_string() << std::endl;
   }
 
@@ -70,6 +74,9 @@ class gpu_hash_table {
     CHECK_CUDA_ERROR(cudaFree(d_value_));
     CHECK_CUDA_ERROR(cudaFree(d_query_));
     CHECK_CUDA_ERROR(cudaFree(d_result_));
+
+    // delete the dynamic allocator:
+    delete dynamic_allocator_;
 
     // slab hash:
     delete (slab_hash_);

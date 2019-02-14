@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include "slab_alloc.cuh"
+
 #define CHECK_CUDA_ERROR(call)                                \
   do {                                                        \
     cudaError_t err = call;                                   \
@@ -67,7 +69,17 @@ template <typename KeyT,
           SlabHashType SlabHashT>
 class GpuSlabHash;
 
-template <typename KeyT,
-          typename ValueT,
-          SlabHashType SlabHashT>
+template <typename KeyT, typename ValueT, SlabHashType SlabHashT>
 struct GpuSlabHashContext;
+
+// The custom allocator that is being used for this code:
+// this might need to be a template paramater itself
+namespace slab_alloc_par {
+constexpr uint32_t log_num_mem_blocks = 8;
+constexpr uint32_t num_super_blocks = 32;
+constexpr uint32_t num_replicas = 1;
+}  // namespace slab_alloc_par
+
+using DynamicAllocatorT = SlabAllocLight<slab_alloc_par::log_num_mem_blocks,
+                                         slab_alloc_par::num_super_blocks,
+                                         slab_alloc_par::num_replicas>;
