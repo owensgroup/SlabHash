@@ -47,6 +47,22 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap> {
     return d_table_;
   }
 
+  __device__ __host__ __forceinline__ AllocatorContextT& getAllocatorContext() {
+    return dynamic_allocator_;
+  }
+
+  // this function should be operated in a warp-wide fashion
+  // TODO: add required asserts to make sure this is true in tests/debugs
+  __device__ __forceinline__ SlabAllocAddressT
+  allocateSlab(const uint32_t& laneId) {
+    return dynamic_allocator_.warpAllocate(laneId);
+  }
+
+  // a thread-wide function to free the slab that was just allocated
+  __device__ __forceinline__ void freeSlab(const SlabAllocAddressT slab_ptr) {
+    dynamic_allocator_.freeUntouched(slab_ptr);
+  }
+
   __host__ void initParameters(const uint32_t num_buckets,
                                const uint32_t hash_x,
                                const uint32_t hash_y,

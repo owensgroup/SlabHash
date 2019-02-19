@@ -26,13 +26,7 @@ __global__ void build_table_kernel(
     KeyT* d_key,
     ValueT* d_value,
     uint32_t num_keys,
-    // GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashType::ConcurrentMap>
-    // slab_hash
-    GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap> slab_hash
-    /*concurrent_slab<KeyT, ValueT>* d_table,
-    uint32_t num_buckets,
-    /*slab_alloc::context_alloc<1> context,*/
-    /*hash_function hf*/) {
+    GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap> slab_hash) {
   uint32_t tid = threadIdx.x + blockIdx.x * blockDim.x;
   uint32_t laneId = threadIdx.x & 0x1F;
 
@@ -40,8 +34,8 @@ __global__ void build_table_kernel(
     return;
   }
 
-  // initializing the memory allocator:
-  // slab_alloc::init_allocator(context, tid, laneId);
+  // initializing the memory allocator on each warp:
+  slab_hash.getAllocatorContext().initAllocator(tid, laneId);
 
   KeyT myKey = 0;
   ValueT myValue = 0;
@@ -57,5 +51,5 @@ __global__ void build_table_kernel(
 
   // TODO: make this a member function of slab_hash
   insert_pair<KeyT, ValueT>(to_insert, laneId, myKey, myValue, myBucket,
-                            slab_hash /*, context*/);
+                            slab_hash);
 }
