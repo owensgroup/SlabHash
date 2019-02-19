@@ -88,3 +88,6 @@ using AllocatorContextT =
     SlabAllocLightContext<slab_alloc_par::log_num_mem_blocks,
                           slab_alloc_par::num_super_blocks,
                           slab_alloc_par::num_replicas>;
+
+using SlabAddressT = uint32_t;
+using BucketAddressT = SlabAddressT;

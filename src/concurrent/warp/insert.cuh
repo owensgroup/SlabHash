@@ -44,11 +44,8 @@ __device__ __forceinline__ void insert_pair(
 
     uint32_t src_unit_data =
         (next == A_INDEX_POINTER)
-            ? *(reinterpret_cast<uint32_t*>(reinterpret_cast<unsigned char*>(
-                    slab_hash.getDeviceTablePointer() /*d_buckets*/)) +
-                (src_bucket * BASE_UNIT_SIZE + laneId))
-            : *(slab_hash.getAllocatorContext().getPointerFromSlab(next,
-                                                                   laneId));
+            ? *(slab_hash.getPointerFromBucket(src_bucket, laneId))
+            : *(slab_hash.getPointerFromSlab(next, laneId));
     uint64_t old_key_value_pair = 0;
 
     uint32_t isEmpty = (__ballot_sync(0xFFFFFFFF, src_unit_data == EMPTY_KEY)) &
@@ -63,12 +60,8 @@ __device__ __forceinline__ void insert_pair(
         if (laneId == 31) {
           const uint32_t* p =
               (next == A_INDEX_POINTER)
-                  ? reinterpret_cast<uint32_t*>(
-                        reinterpret_cast<unsigned char*>(
-                            slab_hash.getDeviceTablePointer() /*d_buckets*/)) +
-                        (src_bucket * BASE_UNIT_SIZE + 31)
-                  : slab_hash.getAllocatorContext().getPointerFromSlab(next,
-                                                                       31);
+                  ? slab_hash.getPointerFromBucket(src_bucket, 31)
+                  : slab_hash.getPointerFromSlab(next, 31);
 
           uint32_t temp =
               atomicCAS((unsigned int*)p, EMPTY_INDEX_POINTER, new_node_ptr);
@@ -86,11 +79,8 @@ __device__ __forceinline__ void insert_pair(
       if (laneId == src_lane) {
         const uint32_t* p =
             (next == A_INDEX_POINTER)
-                ? reinterpret_cast<uint32_t*>(reinterpret_cast<unsigned char*>(
-                      slab_hash.getDeviceTablePointer() /*d_buckets*/)) +
-                      (src_bucket * BASE_UNIT_SIZE + dest_lane)
-                : slab_hash.getAllocatorContext().getPointerFromSlab(next,
-                                                                     dest_lane);
+                ? slab_hash.getPointerFromBucket(src_bucket, dest_lane)
+                : slab_hash.getPointerFromSlab(next, dest_lane);
 
         old_key_value_pair =
             atomicCAS((unsigned long long int*)p, EMPTY_PAIR_64,

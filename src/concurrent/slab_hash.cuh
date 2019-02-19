@@ -63,6 +63,19 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap> {
     dynamic_allocator_.freeUntouched(slab_ptr);
   }
 
+  __device__ __forceinline__ uint32_t* getPointerFromSlab(
+      const SlabAddressT& slab_address,
+      const uint32_t laneId) {
+    return dynamic_allocator_.getPointerFromSlab(slab_address, laneId);
+  }
+
+  __device__ __forceinline__ uint32_t* getPointerFromBucket(
+      const uint32_t bucket_id,
+      const uint32_t laneId) {
+    return reinterpret_cast<uint32_t*>(d_table_) + bucket_id * BASE_UNIT_SIZE +
+           laneId;
+  }
+
   __host__ void initParameters(const uint32_t num_buckets,
                                const uint32_t hash_x,
                                const uint32_t hash_y,
