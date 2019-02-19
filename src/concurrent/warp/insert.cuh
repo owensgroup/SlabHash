@@ -29,8 +29,7 @@ __device__ __forceinline__ void insert_pair(
     KeyT& myKey,
     ValueT& myValue,
     uint32_t bucket_id,
-    GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap>& slab_hash
-    /*slab_alloc::context_alloc<1>& context*/) {
+    GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap>& slab_hash) {
   uint32_t work_queue = 0;
   uint32_t last_work_queue = 0;
   uint32_t next = A_INDEX_POINTER;
@@ -48,10 +47,8 @@ __device__ __forceinline__ void insert_pair(
             ? *(reinterpret_cast<uint32_t*>(reinterpret_cast<unsigned char*>(
                     slab_hash.getDeviceTablePointer() /*d_buckets*/)) +
                 (src_bucket * BASE_UNIT_SIZE + laneId))
-            : 0 /* *(reinterpret_cast<uint32_t*>(
-                    reinterpret_cast<unsigned char*>(context.d_super_blocks)) +
-                slab_alloc::address_decoder<1>(next) + laneId) */
-        ;
+            : *(slab_hash.getAllocatorContext().getPointerFromSlab(next,
+                                                                   laneId));
     uint64_t old_key_value_pair = 0;
 
     uint32_t isEmpty = (__ballot_sync(0xFFFFFFFF, src_unit_data == EMPTY_KEY)) &
@@ -60,29 +57,26 @@ __device__ __forceinline__ void insert_pair(
       uint32_t next_ptr = __shfl_sync(0xFFFFFFFF, src_unit_data, 31, 32);
       if (next_ptr == EMPTY_INDEX_POINTER) {
         // allocate a new node:
-        uint32_t new_node_ptr =
-            0 /*slab_alloc::warp_allocate<1>(context, laneId)*/;
+        uint32_t new_node_ptr = slab_hash.allocateSlab(laneId);
+
         // TODO: experiment if it's better to use lane 0 instead
         if (laneId == 31) {
-          uint32_t* p =
+          const uint32_t* p =
               (next == A_INDEX_POINTER)
                   ? reinterpret_cast<uint32_t*>(
                         reinterpret_cast<unsigned char*>(
                             slab_hash.getDeviceTablePointer() /*d_buckets*/)) +
                         (src_bucket * BASE_UNIT_SIZE + 31)
-                  : nullptr /* reinterpret_cast<uint32_t*>(
-                        reinterpret_cast<unsigned char*>(
-                            context.d_super_blocks) +
-                        (slab_alloc::address_decoder<1>(next) + 31))*/
-              ;
+                  : slab_hash.getAllocatorContext().getPointerFromSlab(next,
+                                                                       31);
 
           uint32_t temp =
               atomicCAS((unsigned int*)p, EMPTY_INDEX_POINTER, new_node_ptr);
           // check whether it was successful, and
           // free the allocated memory otherwise
-          /* == temp: if (temp != EMPTY_INDEX_POINTER)
-
-            slab_alloc::free_untouched<1>(context, new_node_ptr);*/
+          if (temp != EMPTY_INDEX_POINTER) {
+            slab_hash.freeSlab(new_node_ptr);
+          }
         }
       } else {
         next = next_ptr;
@@ -90,17 +84,15 @@ __device__ __forceinline__ void insert_pair(
     } else {  // there is an empty slot available
       int dest_lane = __ffs(isEmpty & REGULAR_NODE_KEY_MASK) - 1;
       if (laneId == src_lane) {
-        uint32_t* p =
+        const uint32_t* p =
             (next == A_INDEX_POINTER)
                 ? reinterpret_cast<uint32_t*>(reinterpret_cast<unsigned char*>(
                       slab_hash.getDeviceTablePointer() /*d_buckets*/)) +
                       (src_bucket * BASE_UNIT_SIZE + dest_lane)
-                : nullptr /* reinterpret_cast<uint32_t*>(reinterpret_cast<unsigned
-                      char*>( context.d_super_blocks)) +
-                      (slab_alloc::address_decoder<1>(next) + dest_lane)*/
-            ;
+                : slab_hash.getAllocatorContext().getPointerFromSlab(next,
+                                                                     dest_lane);
 
-        old_key_value_pair = 
+        old_key_value_pair =
             atomicCAS((unsigned long long int*)p, EMPTY_PAIR_64,
                       ((uint64_t)(*reinterpret_cast<uint32_t*>(
                            reinterpret_cast<unsigned char*>(&myValue)))
