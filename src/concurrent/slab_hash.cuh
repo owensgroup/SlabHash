@@ -20,82 +20,10 @@
 #include <iostream>
 #include <random>
 
-#include "concurrent/device/build.cuh"
 #include "slab_hash_global.cuh"
-
-/*
- * This is the main class that will be shallowly copied into the device to be
- * used at runtime. This class does not own the allocated memories on the gpu
- * (i.e., d_table_)
- */
-template <typename KeyT, typename ValueT>
-class GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap> {
- public:
-  // fixed known parameters:
-  static constexpr uint32_t PRIME_DIVISOR_ = 4294967291u;
-
-  GpuSlabHashContext()
-      : num_buckets_(0), hash_x_(0), hash_y_(0), d_table_(nullptr) {}
-
-  __device__ __host__ __forceinline__ uint32_t
-  computeBucket(const KeyT& key) const {
-    return (((hash_x_ ^ key) + hash_y_) % PRIME_DIVISOR_) % num_buckets_;
-  }
-
-  __device__ __host__ __forceinline__ concurrent_slab<KeyT, ValueT>*
-  getDeviceTablePointer() {
-    return d_table_;
-  }
-
-  __device__ __host__ __forceinline__ AllocatorContextT& getAllocatorContext() {
-    return dynamic_allocator_;
-  }
-
-  // this function should be operated in a warp-wide fashion
-  // TODO: add required asserts to make sure this is true in tests/debugs
-  __device__ __forceinline__ SlabAllocAddressT
-  allocateSlab(const uint32_t& laneId) {
-    return dynamic_allocator_.warpAllocate(laneId);
-  }
-
-  // a thread-wide function to free the slab that was just allocated
-  __device__ __forceinline__ void freeSlab(const SlabAllocAddressT slab_ptr) {
-    dynamic_allocator_.freeUntouched(slab_ptr);
-  }
-
-  __device__ __forceinline__ uint32_t* getPointerFromSlab(
-      const SlabAddressT& slab_address,
-      const uint32_t laneId) {
-    return dynamic_allocator_.getPointerFromSlab(slab_address, laneId);
-  }
-
-  __device__ __forceinline__ uint32_t* getPointerFromBucket(
-      const uint32_t bucket_id,
-      const uint32_t laneId) {
-    return reinterpret_cast<uint32_t*>(d_table_) + bucket_id * BASE_UNIT_SIZE +
-           laneId;
-  }
-
-  __host__ void initParameters(const uint32_t num_buckets,
-                               const uint32_t hash_x,
-                               const uint32_t hash_y,
-                               concurrent_slab<KeyT, ValueT>* d_table,
-                               AllocatorContextT* allocator_ctx) {
-    num_buckets_ = num_buckets;
-    hash_x_ = hash_x;
-    hash_y_ = hash_y;
-    d_table_ = d_table;
-    dynamic_allocator_ = *allocator_ctx;
-  }
-
- private:
-  uint32_t num_buckets_;
-  uint32_t hash_x_;
-  uint32_t hash_y_;
-  concurrent_slab<KeyT, ValueT>* d_table_;
-  // a copy of dynamic allocator's context to be used on the GPU
-  AllocatorContextT dynamic_allocator_;
-};
+#include "slab_hash_context.cuh"
+#include "concurrent/warp/insert.cuh"
+#include "concurrent/device/build.cuh"
 
 /*
  * This class owns the allocated memory for the hash table

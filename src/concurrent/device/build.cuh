@@ -15,8 +15,7 @@
  */
 
 #pragma once
-#include "concurrent/warp/insert.cuh"
-#include "slab_hash_global.cuh"
+#include "slab_hash.cuh" 
 
 /*
  *
@@ -49,7 +48,5 @@ __global__ void build_table_kernel(
     to_insert = true;
   }
 
-  // TODO: make this a member function of slab_hash
-  insert_pair<KeyT, ValueT>(to_insert, laneId, myKey, myValue, myBucket,
-                            slab_hash);
+  slab_hash.insertPair(to_insert, laneId, myKey, myValue, myBucket);
 }

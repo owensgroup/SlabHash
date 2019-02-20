@@ -16,7 +16,6 @@
 
 #pragma once
 #include "concurrent/slab_hash.cuh"
-#include "slab_hash_global.cuh"
 
 template <typename KeyT, typename ValueT, uint32_t DEVICE_IDX>
 class gpu_hash_table {

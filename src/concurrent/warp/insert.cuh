@@ -15,7 +15,6 @@
  */
 
 #pragma once
-#include "slab_hash_global.cuh"
 
 /*
  * each thread inserts a key-value pair into the hash table
@@ -23,13 +22,13 @@
  * each other with a warp-cooperative work sharing (WCWS) strategy.
  */
 template <typename KeyT, typename ValueT>
-__device__ __forceinline__ void insert_pair(
+__device__ __forceinline__ void
+GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap>::insertPair(
     bool& to_be_inserted,
-    uint32_t& laneId,
-    KeyT& myKey,
-    ValueT& myValue,
-    uint32_t bucket_id,
-    GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap>& slab_hash) {
+    const uint32_t& laneId,
+    const KeyT& myKey,
+    const ValueT& myValue,
+    const uint32_t bucket_id) {
   uint32_t work_queue = 0;
   uint32_t last_work_queue = 0;
   uint32_t next = A_INDEX_POINTER;
@@ -44,8 +43,8 @@ __device__ __forceinline__ void insert_pair(
 
     uint32_t src_unit_data =
         (next == A_INDEX_POINTER)
-            ? *(slab_hash.getPointerFromBucket(src_bucket, laneId))
-            : *(slab_hash.getPointerFromSlab(next, laneId));
+            ? *(getPointerFromBucket(src_bucket, laneId))
+            : *(getPointerFromSlab(next, laneId));
     uint64_t old_key_value_pair = 0;
 
     uint32_t isEmpty = (__ballot_sync(0xFFFFFFFF, src_unit_data == EMPTY_KEY)) &
@@ -54,21 +53,21 @@ __device__ __forceinline__ void insert_pair(
       uint32_t next_ptr = __shfl_sync(0xFFFFFFFF, src_unit_data, 31, 32);
       if (next_ptr == EMPTY_INDEX_POINTER) {
         // allocate a new node:
-        uint32_t new_node_ptr = slab_hash.allocateSlab(laneId);
+        uint32_t new_node_ptr = allocateSlab(laneId);
 
         // TODO: experiment if it's better to use lane 0 instead
         if (laneId == 31) {
           const uint32_t* p =
               (next == A_INDEX_POINTER)
-                  ? slab_hash.getPointerFromBucket(src_bucket, 31)
-                  : slab_hash.getPointerFromSlab(next, 31);
+                  ? getPointerFromBucket(src_bucket, 31)
+                  : getPointerFromSlab(next, 31);
 
           uint32_t temp =
               atomicCAS((unsigned int*)p, EMPTY_INDEX_POINTER, new_node_ptr);
           // check whether it was successful, and
           // free the allocated memory otherwise
           if (temp != EMPTY_INDEX_POINTER) {
-            slab_hash.freeSlab(new_node_ptr);
+            freeSlab(new_node_ptr);
           }
         }
       } else {
@@ -79,16 +78,16 @@ __device__ __forceinline__ void insert_pair(
       if (laneId == src_lane) {
         const uint32_t* p =
             (next == A_INDEX_POINTER)
-                ? slab_hash.getPointerFromBucket(src_bucket, dest_lane)
-                : slab_hash.getPointerFromSlab(next, dest_lane);
+                ? getPointerFromBucket(src_bucket, dest_lane)
+                : getPointerFromSlab(next, dest_lane);
 
         old_key_value_pair =
             atomicCAS((unsigned long long int*)p, EMPTY_PAIR_64,
-                      ((uint64_t)(*reinterpret_cast<uint32_t*>(
-                           reinterpret_cast<unsigned char*>(&myValue)))
+                      ((uint64_t)(*reinterpret_cast<const uint32_t*>(
+                           reinterpret_cast<const unsigned char*>(&myValue)))
                        << 32) |
-                          *reinterpret_cast<uint32_t*>(
-                              reinterpret_cast<unsigned char*>(&myKey)));
+                          *reinterpret_cast<const uint32_t*>(
+                              reinterpret_cast<const unsigned char*>(&myKey)));
         if (old_key_value_pair == EMPTY_PAIR_64)
           to_be_inserted = false;  // succesfful insertion
       }
