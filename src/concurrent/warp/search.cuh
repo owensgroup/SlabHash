@@ -43,7 +43,8 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap>::searchKey(
         (next == A_INDEX_POINTER) ? *(getPointerFromBucket(src_bucket, laneId))
                                   : *(getPointerFromSlab(next, laneId));
     int found_lane =
-        __ffs(__ballot_sync(0xFFFFFFFF, src_unit_data == wanted_key) & REGULAR_NODE_KEY_MASK) -
+        __ffs(__ballot_sync(0xFFFFFFFF, src_unit_data == wanted_key) &
+              REGULAR_NODE_KEY_MASK) -
         1;
     if (found_lane < 0) {  // not found
       uint32_t next_ptr = __shfl_sync(0xFFFFFFFF, src_unit_data, 31, 32);
@@ -55,15 +56,15 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap>::searchKey(
       } else {
         next = next_ptr;
       }
-                } else {  // found the key:
-                  uint32_t found_value =
-                      __shfl_sync(0xFFFFFFFF, src_unit_data, found_lane + 1, 32);
-                  if (laneId == src_lane) {
-                    myValue = *reinterpret_cast<const ValueT*>(
-                        reinterpret_cast<const unsigned char*>(&found_value));
-                    to_be_searched = false;
-                  }
-                }
-                last_work_queue = work_queue;
+    } else {  // found the key:
+      uint32_t found_value =
+          __shfl_sync(0xFFFFFFFF, src_unit_data, found_lane + 1, 32);
+      if (laneId == src_lane) {
+        myValue = *reinterpret_cast<const ValueT*>(
+            reinterpret_cast<const unsigned char*>(&found_value));
+        to_be_searched = false;
+      }
+    }
+    last_work_queue = work_queue;
   }
 }
