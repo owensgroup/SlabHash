@@ -91,7 +91,7 @@ int main(int argc, char** argv) {
 
   for(int i = 0; i<num_existing; i++){
   	h_query[i] = h_key[num_keys - 1 - i];
-  	h_correct_result[i] = h_query[i];
+  	h_correct_result[i] = f(h_query[i]);
   }
 
   for(int i = 0; i<(num_queries - num_existing); i++)
@@ -100,7 +100,13 @@ int main(int argc, char** argv) {
   	h_correct_result[num_existing + i] = SEARCH_NOT_FOUND;
   }
   // permuting the queries:
-  std::shuffle(h_query.begin(), h_query.end(), rng);
+  std::vector<int> q_index(num_queries);
+  std::iota(q_index.begin(), q_index.end(), 0);
+  std::shuffle(q_index.begin(), q_index.end(), rng);
+  for(int i = 0; i<num_queries; i++){
+    std::swap(h_query[i], h_query[q_index[i]]);
+    std::swap(h_correct_result[i], h_correct_result[q_index[i]]);
+  }
   // randomPermutePairs(h_query, h_correct_result, num_queries);
 
   // auto gpu_hash_table_ptr = new gpu_hash_table<KeyT, ValueT, DEVICE_ID>(num_keys, num_buckets, seed);
@@ -125,8 +131,9 @@ int main(int argc, char** argv) {
   // printf("\t1) Hash table init in %.3f ms\n", init_time);
   printf("\t2) Hash table built in %.3f ms (%.3f M elements/s)\n", build_time,
          double(num_keys) / build_time / 1000.0);
-  // printf("\t3) Hash table search (%.2f) in %.3f ms (%.3f M queries/s)\n",
-  // existing_ratio, search_time, double(num_queries)/search_time/1000.0);
+  printf("\t3) Hash table search (%.2f) in %.3f ms (%.3f M queries/s)\n",
+         existing_ratio, search_time,
+         double(num_queries) / search_time / 1000.0);
   // printf("\t4) Hash table bulk search (%.2f) in %.3f ms (%.3f M
   // queries/s)\n", existing_ratio, search_time_bulk,
   // double(num_queries)/search_time_bulk/1000.0);
