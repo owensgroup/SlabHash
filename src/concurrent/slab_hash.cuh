@@ -20,10 +20,17 @@
 #include <iostream>
 #include <random>
 
+// class declaration:
 #include "slab_hash_global.cuh"
 #include "slab_hash_context.cuh"
+
+// warp implementations of member functions:
 #include "concurrent/warp/insert.cuh"
+#include "concurrent/warp/search.cuh"
+
+// helper kernels:
 #include "concurrent/device/build.cuh"
+#include "concurrent/device/search_kernel.cuh"
 
 /*
  * This class owns the allocated memory for the hash table
@@ -100,14 +107,19 @@ class GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashType::ConcurrentMap> {
   // returns some debug information about the slab hash
   std::string to_string();
 
-  void bulk_build(KeyT* d_key, ValueT* d_value, uint32_t num_keys) {
-    uint32_t num_blocks = (num_keys + BLOCKSIZE_ - 1) / BLOCKSIZE_;
+  void buildBulk(KeyT* d_key, ValueT* d_value, uint32_t num_keys) {
+    const uint32_t num_blocks = (num_keys + BLOCKSIZE_ - 1) / BLOCKSIZE_;
     // calling the kernel for bulk build:
-    // build_table_kernel<KeyT, ValueT><<<num_blocks, BLOCKSIZE_>>>(
-    //     d_key, d_value, num_keys, d_table_, num_buckets_, ctx_alloc_, hf_);
     CHECK_CUDA_ERROR(cudaSetDevice(DEVICE_IDX));
     build_table_kernel<KeyT, ValueT>
         <<<num_blocks, BLOCKSIZE_>>>(d_key, d_value, num_keys, gpu_context_);
+  }
+
+  void searchIndividual(KeyT* d_query, ValueT* d_result, uint32_t num_queries) {
+    CHECK_CUDA_ERROR(cudaSetDevice(DEVICE_IDX));
+    const uint32_t num_blocks = (num_queries + BLOCKSIZE_ - 1) / BLOCKSIZE_;
+    search_table<KeyT, ValueT><<<num_blocks, BLOCKSIZE_>>>(
+        d_query, d_result, num_queries, gpu_context_);
   }
 };
 

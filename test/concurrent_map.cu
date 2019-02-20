@@ -62,6 +62,9 @@ int main(int argc, char** argv) {
 
   std::vector<KeyT> h_key(num_elements);
   std::vector<ValueT> h_value(num_elements);
+  std::vector<KeyT> h_query(num_queries);
+  std::vector<ValueT> h_correct_result(num_queries);
+  std::vector<ValueT> h_result(num_queries);
 
   // std::iota(h_key.begin(), h_key.end(), 0);
   const auto f = [](const KeyT& key) { return key * 10; };
@@ -82,21 +85,22 @@ int main(int argc, char** argv) {
   // 	std::cout << "(" << h_key[i] << ", " << h_value[i] << ")" << std::endl;
   // }
 
-  // === generating random queries with a fixed ratio existing in keys
-  // uint32_t num_existing = static_cast<uint32_t>(existing_ratio *
-  // num_queries);
+  //=== generating random queries with a fixed ratio existing in keys
+  uint32_t num_existing = static_cast<uint32_t>(existing_ratio *
+  num_queries);
 
-  // for(int i = 0; i<num_existing; i++){
-  // 	h_query[i] = h_key[num_keys - 1 - i];
-  // 	h_correct_result[i] = h_query[i];
-  // }
+  for(int i = 0; i<num_existing; i++){
+  	h_query[i] = h_key[num_keys - 1 - i];
+  	h_correct_result[i] = h_query[i];
+  }
 
-  // for(int i = 0; i<(num_queries - num_existing); i++)
-  // {
-  // 	h_query[num_existing + i] = h_key[num_keys + i];
-  // 	h_correct_result[num_existing + i] = SEARCH_NOT_FOUND__;
-  // }
-  // // permuting the queries:
+  for(int i = 0; i<(num_queries - num_existing); i++)
+  {
+  	h_query[num_existing + i] = h_key[num_keys + i];
+  	h_correct_result[num_existing + i] = SEARCH_NOT_FOUND;
+  }
+  // permuting the queries:
+  std::shuffle(h_query.begin(), h_query.end(), rng);
   // randomPermutePairs(h_query, h_correct_result, num_queries);
 
   // auto gpu_hash_table_ptr = new gpu_hash_table<KeyT, ValueT, DEVICE_ID>(num_keys, num_buckets, seed);
@@ -111,8 +115,8 @@ int main(int argc, char** argv) {
   // max_allocator_size); float init_time = hash_table.init();
   float build_time =
         hash_table.hash_build(h_key.data(), h_value.data(), num_keys);
-      // gpu_hash_table_ptr->hash_build(h_key.data(), h_value.data(), num_keys);
-  // float search_time = hash_table.hash_search(h_query, h_result, num_queries);
+  float search_time =
+      hash_table.hash_search(h_query.data(), h_result.data(), num_queries);
   // float search_time_bulk = hash_table.hash_search_bulk(h_query, h_result,
   // num_queries);
   // // hash_table.print_bucket(0);
@@ -130,15 +134,16 @@ int main(int argc, char** argv) {
   // double load_factor = hash_table.load_factor();
 
   // printf("The load factor is %.2f, number of buckets %d\n", load_factor,
-  // num_buckets); validation: for(int i = 0; i<num_queries; i++){
-  // 	if(h_correct_result[i] != h_result[i])
-  // 	{
-  // 		printf("### wrong result at index %d: [%d] -> %f, but should be
-  // %f\n", i, h_query[i], h_result[i], h_correct_result[i]); 		break;
-  // 	}
-  // 	if(i == (num_queries-1))
-  // 		printf("Validation done successfully\n");
-  // }
+  // num_buckets); validation:
+  for (int i = 0; i < num_queries; i++) {
+    if (h_correct_result[i] != h_result[i]) {
+      printf("### wrong result at index %d: [%d] -> %d, but should be %d\n", i,
+             h_query[i], h_result[i], h_correct_result[i]);
+      break;
+    }
+    if (i == (num_queries - 1))
+      printf("Validation done successfully\n");
+  }
 
   //	=== building cudpp for comparison
   // float load_factor_cudpp = 0.8f;

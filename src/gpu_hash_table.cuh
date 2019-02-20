@@ -98,7 +98,7 @@ class gpu_hash_table {
     cudaEventRecord(start, 0);
 
     // calling slab-hash's bulk build procedure:
-    slab_hash_->bulk_build(d_key_, d_value_, num_keys);
+    slab_hash_->buildBulk(d_key_, d_value_, num_keys);
 
     cudaEventRecord(stop, 0);
     cudaEventSynchronize(stop);
@@ -106,6 +106,36 @@ class gpu_hash_table {
 
     cudaEventDestroy(start);
     cudaEventDestroy(stop);
+    return temp_time;
+  }
+
+  float hash_search(KeyT* h_query, ValueT* h_result, uint32_t num_queries) {
+    CHECK_CUDA_ERROR(cudaSetDevice(DEVICE_IDX));
+    CHECK_ERROR(cudaMemcpy(d_query_, h_query, sizeof(KeyT) * num_queries,
+                           cudaMemcpyHostToDevice));
+    CHECK_ERROR(cudaMemset(d_result_, 0xFF, sizeof(ValueT) * num_queries));
+
+    float temp_time = 0.0f;
+
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    cudaEventRecord(start, 0);
+
+    // == calling slab hash's individual search:
+    slab_hash_->searchIndividual(d_query_, d_result_, num_queries);
+    //==
+
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&temp_time, start, stop);
+
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+
+    CHECK_ERROR(cudaMemcpy(h_result, d_result_, sizeof(ValueT) * num_queries,
+                           cudaMemcpyDeviceToHost));
+    cudaDeviceSynchronize();
     return temp_time;
   }
 };

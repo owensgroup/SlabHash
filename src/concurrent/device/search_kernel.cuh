@@ -15,36 +15,38 @@
  */
 
 #pragma once
-/*
- *
- */
+
+//=== Individual search kernel:
 template <typename KeyT, typename ValueT>
-__global__ void build_table_kernel(
-    KeyT* d_key,
-    ValueT* d_value,
-    uint32_t num_keys,
+__global__ void search_table(
+    KeyT* d_queries,
+    ValueT* d_results,
+    uint32_t num_queries,
     GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap> slab_hash) {
   uint32_t tid = threadIdx.x + blockIdx.x * blockDim.x;
   uint32_t laneId = threadIdx.x & 0x1F;
 
-  if ((tid - laneId) >= num_keys) {
+  if ((tid - laneId) >= num_queries) {
     return;
   }
 
   // initializing the memory allocator on each warp:
   slab_hash.getAllocatorContext().initAllocator(tid, laneId);
 
-  KeyT myKey = 0;
-  ValueT myValue = 0;
+  KeyT myQuery = 0;
+  ValueT myResult = static_cast<ValueT>(SEARCH_NOT_FOUND);
   uint32_t myBucket = 0;
-  bool to_insert = false;
-
-  if (tid < num_keys) {
-    myKey = d_key[tid];
-    myValue = d_value[tid];
-    myBucket = slab_hash.computeBucket(myKey);
-    to_insert = true;
+  bool to_search = false;
+  if (tid < num_queries) {
+    myQuery = d_queries[tid];
+    myBucket = slab_hash.computeBucket(myQuery);
+    to_search = true;
   }
 
-  slab_hash.insertPair(to_insert, laneId, myKey, myValue, myBucket);
+  slab_hash.searchKey(to_search, laneId, myQuery, myResult, myBucket);
+
+  // writing back the results:
+  if (tid < num_queries) {
+    d_results[tid] = myResult;
+  }
 }
