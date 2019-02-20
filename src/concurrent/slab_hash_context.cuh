@@ -15,8 +15,6 @@
  */
 
 #pragma once
-#include "slab_hash_global.cuh"
-
 /*
  * This is the main class that will be shallowly copied into the device to be
  * used at runtime. This class does not own the allocated memory on the gpu
@@ -64,6 +62,15 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap> {
                                              const KeyT& myKey,
                                              const ValueT& myValue,
                                              const uint32_t bucket_id);
+
+  // threads in a warp cooeparte with each other to search for keys
+  // if found, it returns the corresponding value, else SEARCH_NOT_FOUND
+  // is returned 
+  __device__ __forceinline__ void searchKey(bool& to_be_searched,
+                                            const uint32_t& laneId,
+                                            const KeyT& myKey,
+                                            ValueT& myValue,
+                                            const uint32_t bucket_id);
 
  private:
   // this function should be operated in a warp-wide fashion

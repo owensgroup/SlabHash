@@ -39,6 +39,7 @@ static constexpr uint32_t BASE_UNIT_SIZE = WARP_WIDTH;
 static constexpr uint32_t REGULAR_NODE_ADDRESS_MASK = 0x30000000;
 static constexpr uint32_t REGULAR_NODE_DATA_MASK = 0x3FFFFFFF;
 static constexpr uint32_t REGULAR_NODE_KEY_MASK = 0x15555555;
+static constexpr uint32_t SEARCH_NOT_FOUND = 0xFFFFFFFF;
 
 // only works with up to 32-bit key/values
 template <typename KeyT, typename ValueT>
