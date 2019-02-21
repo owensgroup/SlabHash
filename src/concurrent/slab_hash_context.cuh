@@ -72,6 +72,14 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap> {
                                             ValueT& myValue,
                                             const uint32_t bucket_id);
 
+  // threads in a warp cooperate with each other to search for keys.
+  // the main difference with above function is that it is assumed all 
+  // threads have something to search for
+  __device__ __forceinline__ void searchKeyBulk(const uint32_t& laneId,
+                                                const KeyT& myKey,
+                                                ValueT& myValue,
+                                                const uint32_t bucket_id);
+
  private:
   // this function should be operated in a warp-wide fashion
   // TODO: add required asserts to make sure this is true in tests/debugs
