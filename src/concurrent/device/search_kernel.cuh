@@ -50,3 +50,36 @@ __global__ void search_table(
     d_results[tid] = myResult;
   }
 }
+
+//=== Bulk search kernel:
+template <typename KeyT, typename ValueT>
+__global__ void search_table_bulk(
+    KeyT* d_queries,
+    ValueT* d_results,
+    uint32_t num_queries,
+    GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap> slab_hash) {
+  uint32_t tid = threadIdx.x + blockIdx.x * blockDim.x;
+  uint32_t laneId = threadIdx.x & 0x1F;
+
+  if ((tid - laneId) >= num_queries) {
+    return;
+  }
+
+  // initializing the memory allocator on each warp:
+  slab_hash.getAllocatorContext().initAllocator(tid, laneId);
+
+  KeyT myQuery = 0;
+  ValueT myResult = static_cast<ValueT>(SEARCH_NOT_FOUND);
+  uint32_t myBucket = 0;
+  if (tid < num_queries) {
+    myQuery = d_queries[tid];
+    myBucket = slab_hash.computeBucket(myQuery);
+  }
+
+  slab_hash.searchKeyBulk(laneId, myQuery, myResult, myBucket);
+
+  // writing back the results:
+  if (tid < num_queries) {
+    d_results[tid] = myResult;
+  }
+}
