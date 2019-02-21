@@ -16,6 +16,9 @@
 
 #pragma once
 
+//================================================
+// Individual Search Unit:
+//================================================
 template <typename KeyT, typename ValueT>
 __device__ __forceinline__ void
 GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap>::searchKey(
@@ -66,5 +69,50 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap>::searchKey(
       }
     }
     last_work_queue = work_queue;
+  }
+}
+
+//================================================
+// Bulk Search Unit:
+//================================================
+template <typename KeyT, typename ValueT>
+__device__ __forceinline__ void
+GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap>::searchKeyBulk(
+    const uint32_t& laneId,
+    const KeyT& myKey,
+    ValueT& myValue,
+    const uint32_t bucket_id) {
+#pragma unroll
+  for (int src_lane = 0; src_lane < WARP_WIDTH; src_lane++) {
+    bool is_top_of_list = true;
+    uint32_t next_ptr = EMPTY_INDEX_POINTER;
+    uint32_t found_lane_plus_1 = 0;
+    uint32_t src_bucket = __shfl_sync(0xFFFFFFFF, bucket_id, src_lane, 32);
+    uint32_t wanted_key =
+        __shfl_sync(0xFFFFFFFF,
+                    *reinterpret_cast<const uint32_t*>(
+                        reinterpret_cast<const unsigned char*>(&myKey)),
+                    src_lane, 32);
+
+    do {
+      const uint32_t src_unit_data =
+          (is_top_of_list) ? *(getPointerFromBucket(src_bucket, laneId))
+                           : *(getPointerFromSlab(next_ptr, laneId));
+
+      next_ptr = __shfl_sync(0xFFFFFFFF, src_unit_data, 31, 32);
+      // if found_lane_plus_1 == 0, then the query is not found
+      found_lane_plus_1 =
+          __ffs(__ballot_sync(0xFFFFFFFF, src_unit_data == wanted_key) &
+                REGULAR_NODE_KEY_MASK);
+      // values are stored at (found_value + 1)
+      uint32_t found_value =
+          __shfl_sync(0xFFFFFFFF, src_unit_data, found_lane_plus_1, 32);
+      // The responsible thread stores the result if it is found correctly
+      myValue = ((found_lane_plus_1 != 0) && (src_lane == laneId))
+                    ? *reinterpret_cast<const ValueT*>(
+                          reinterpret_cast<const unsigned char*>(&found_value))
+                    : myValue;
+      is_top_of_list = false;
+    } while ((next_ptr != EMPTY_INDEX_POINTER) && (found_lane_plus_1 == 0));
   }
 }
