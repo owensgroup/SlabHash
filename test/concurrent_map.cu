@@ -40,17 +40,14 @@ int main(int argc, char** argv) {
   //======================================
   // Building my hash table:
   //======================================
-  uint32_t num_keys = 10;
+  uint32_t num_keys = 1<<20;
 
-  float expected_chain = 0.1f;
+  float expected_chain = 0.6f;
   uint32_t num_elements_per_unit = 15;
   uint32_t expected_elements_per_bucket =
       expected_chain * num_elements_per_unit;
   uint32_t num_buckets = (num_keys + expected_elements_per_bucket - 1) /
                          expected_elements_per_bucket;
-  // size_t max_allocator_size = ((WARP_ALLOCATOR_TYPE ==
-  // WARP_ALLOCATOR_REGULAR)?32:1) * NUM_MEM_BLOCKS_PER_SUPER_BLOCK *
-  // MEM_BLOCK_SIZE; printf("Max allocator size: %lu\n", max_allocator_size);
 
   // ==== generating key-values and queries on the host:
   float existing_ratio = 1.0f;  // ratio of queries within the table
@@ -81,50 +78,34 @@ int main(int argc, char** argv) {
     h_value[i] = f(h_key[i]);
   }
 
-  // for (int32_t i = 0; i< h_key.size(); i++) {
-  // 	std::cout << "(" << h_key[i] << ", " << h_value[i] << ")" << std::endl;
-  // }
-
   //=== generating random queries with a fixed ratio existing in keys
-  uint32_t num_existing = static_cast<uint32_t>(existing_ratio *
-  num_queries);
+  uint32_t num_existing = static_cast<uint32_t>(existing_ratio * num_queries);
 
-  for(int i = 0; i<num_existing; i++){
-  	h_query[i] = h_key[num_keys - 1 - i];
-  	h_correct_result[i] = f(h_query[i]);
+  for (int i = 0; i < num_existing; i++) {
+    h_query[i] = h_key[num_keys - 1 - i];
+    h_correct_result[i] = f(h_query[i]);
   }
 
-  for(int i = 0; i<(num_queries - num_existing); i++)
-  {
-  	h_query[num_existing + i] = h_key[num_keys + i];
-  	h_correct_result[num_existing + i] = SEARCH_NOT_FOUND;
+  for (int i = 0; i < (num_queries - num_existing); i++) {
+    h_query[num_existing + i] = h_key[num_keys + i];
+    h_correct_result[num_existing + i] = SEARCH_NOT_FOUND;
   }
   // permuting the queries:
   std::vector<int> q_index(num_queries);
   std::iota(q_index.begin(), q_index.end(), 0);
   std::shuffle(q_index.begin(), q_index.end(), rng);
-  for(int i = 0; i<num_queries; i++){
+  for (int i = 0; i < num_queries; i++) {
     std::swap(h_query[i], h_query[q_index[i]]);
     std::swap(h_correct_result[i], h_correct_result[q_index[i]]);
   }
-  // randomPermutePairs(h_query, h_correct_result, num_queries);
+  gpu_hash_table<KeyT, ValueT, DEVICE_ID> hash_table(num_keys, num_buckets, seed);
 
-  // auto gpu_hash_table_ptr = new gpu_hash_table<KeyT, ValueT, DEVICE_ID>(num_keys, num_buckets, seed);
-  gpu_hash_table<KeyT, ValueT, DEVICE_ID> hash_table(num_keys, num_buckets, seed
-                                            /*max_allocator_size*/);
-  // float init_time = hash_table.init();
-  // printf("Init time = %.3f\n", init_time);
-
-  // float build_time = hash_table.hash_build(h_key, h_value, num_keys);
-  // printf("Building time: %.3f\n", build_time);
-  // my_hash_table::gpu_hash_table hash_table(num_keys, num_buckets,
-  // max_allocator_size); float init_time = hash_table.init();
   float build_time =
-        hash_table.hash_build(h_key.data(), h_value.data(), num_keys);
+      hash_table.hash_build(h_key.data(), h_value.data(), num_keys);
   float search_time =
       hash_table.hash_search(h_query.data(), h_result.data(), num_queries);
-  // float search_time_bulk = hash_table.hash_search_bulk(h_query, h_result,
-  // num_queries);
+  float search_time_bulk =
+      hash_table.hash_search_bulk(h_query.data(), h_result.data(), num_queries);
   // // hash_table.print_bucket(0);
   printf("Hash table: \n");
   printf("num_keys = %d, num_buckets = %d\n", num_keys, num_buckets);
@@ -134,9 +115,9 @@ int main(int argc, char** argv) {
   printf("\t3) Hash table search (%.2f) in %.3f ms (%.3f M queries/s)\n",
          existing_ratio, search_time,
          double(num_queries) / search_time / 1000.0);
-  // printf("\t4) Hash table bulk search (%.2f) in %.3f ms (%.3f M
-  // queries/s)\n", existing_ratio, search_time_bulk,
-  // double(num_queries)/search_time_bulk/1000.0);
+  printf("\t4) Hash table bulk search (%.2f) in %.3f ms (%.3f Mqueries/s)\n",
+         existing_ratio, search_time_bulk,
+         double(num_queries) / search_time_bulk / 1000.0);
 
   // double load_factor = hash_table.load_factor();
 
