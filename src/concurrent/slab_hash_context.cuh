@@ -80,6 +80,13 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap> {
                                                 ValueT& myValue,
                                                 const uint32_t bucket_id);
 
+  // all threads within a warp cooperate with each other to delete
+  // keys
+  __device__ __forceinline__ void deleteKey(bool& to_be_deleted,
+                                            const uint32_t& laneId,
+                                            const KeyT& myKey,
+                                            const uint32_t bucket_id);
+
  private:
   // this function should be operated in a warp-wide fashion
   // TODO: add required asserts to make sure this is true in tests/debugs

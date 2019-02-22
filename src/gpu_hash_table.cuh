@@ -171,4 +171,27 @@ class gpu_hash_table {
     cudaDeviceSynchronize();
     return temp_time;
   }
+
+  float hash_delete(KeyT* h_key, uint32_t num_keys){
+    CHECK_CUDA_ERROR(cudaSetDevice(DEVICE_IDX));
+    CHECK_CUDA_ERROR(cudaMemcpy(d_key_, h_key, sizeof(KeyT) * num_keys, cudaMemcpyHostToDevice));
+
+    float temp_time = 0.0f;
+
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    cudaEventRecord(start, 0);
+
+    //=== slab hash's deletion:
+    slab_hash_ -> deleteIndividual(d_key_, num_keys);
+
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&temp_time, start, stop);  
+
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+    return temp_time;   
+  }  
 };
