@@ -20,16 +20,20 @@
 #include <iostream>
 #include <random>
 
-// class declaration:
+// global declarations
 #include "slab_hash_global.cuh"
+
+// class declaration:
 #include "slab_hash_context.cuh"
 
 // warp implementations of member functions:
+#include "concurrent/warp/delete.cuh"
 #include "concurrent/warp/insert.cuh"
 #include "concurrent/warp/search.cuh"
 
 // helper kernels:
 #include "concurrent/device/build.cuh"
+#include "concurrent/device/delete_kernel.cuh"
 #include "concurrent/device/search_kernel.cuh"
 
 /*
@@ -127,6 +131,13 @@ class GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashType::ConcurrentMap> {
     const uint32_t num_blocks = (num_queries + BLOCKSIZE_ - 1) / BLOCKSIZE_;
     search_table_bulk<KeyT, ValueT><<<num_blocks, BLOCKSIZE_>>>(
         d_query, d_result, num_queries, gpu_context_);
+  }
+
+  void deleteIndividual(KeyT* d_key, uint32_t num_keys) {
+    CHECK_CUDA_ERROR(cudaSetDevice(DEVICE_IDX));
+    const uint32_t num_blocks = (num_keys + BLOCKSIZE_ - 1) / BLOCKSIZE_;
+    delete_table_keys<KeyT, ValueT>
+        <<<num_blocks, BLOCKSIZE_>>>(d_key, num_keys, gpu_context_);
   }
 };
 
