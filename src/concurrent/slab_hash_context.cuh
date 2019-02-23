@@ -65,7 +65,7 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap> {
 
   // threads in a warp cooeparte with each other to search for keys
   // if found, it returns the corresponding value, else SEARCH_NOT_FOUND
-  // is returned 
+  // is returned
   __device__ __forceinline__ void searchKey(bool& to_be_searched,
                                             const uint32_t& laneId,
                                             const KeyT& myKey,
@@ -73,7 +73,7 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap> {
                                             const uint32_t bucket_id);
 
   // threads in a warp cooperate with each other to search for keys.
-  // the main difference with above function is that it is assumed all 
+  // the main difference with above function is that it is assumed all
   // threads have something to search for
   __device__ __forceinline__ void searchKeyBulk(const uint32_t& laneId,
                                                 const KeyT& myKey,
@@ -87,19 +87,6 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap> {
                                             const KeyT& myKey,
                                             const uint32_t bucket_id);
 
- private:
-  // this function should be operated in a warp-wide fashion
-  // TODO: add required asserts to make sure this is true in tests/debugs
-  __device__ __forceinline__ SlabAllocAddressT
-  allocateSlab(const uint32_t& laneId) {
-    return dynamic_allocator_.warpAllocate(laneId);
-  }
-
-  // a thread-wide function to free the slab that was just allocated
-  __device__ __forceinline__ void freeSlab(const SlabAllocAddressT slab_ptr) {
-    dynamic_allocator_.freeUntouched(slab_ptr);
-  }
-
   __device__ __forceinline__ uint32_t* getPointerFromSlab(
       const SlabAddressT& slab_address,
       const uint32_t laneId) {
@@ -111,6 +98,19 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap> {
       const uint32_t laneId) {
     return reinterpret_cast<uint32_t*>(d_table_) + bucket_id * BASE_UNIT_SIZE +
            laneId;
+  }
+
+ private:
+  // this function should be operated in a warp-wide fashion
+  // TODO: add required asserts to make sure this is true in tests/debugs
+  __device__ __forceinline__ SlabAllocAddressT
+  allocateSlab(const uint32_t& laneId) {
+    return dynamic_allocator_.warpAllocate(laneId);
+  }
+
+  // a thread-wide function to free the slab that was just allocated
+  __device__ __forceinline__ void freeSlab(const SlabAllocAddressT slab_ptr) {
+    dynamic_allocator_.freeUntouched(slab_ptr);
   }
 
   // === members:
