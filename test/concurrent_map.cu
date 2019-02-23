@@ -119,10 +119,12 @@ int main(int argc, char** argv) {
          existing_ratio, search_time_bulk,
          double(num_queries) / search_time_bulk / 1000.0);
 
-  // double load_factor = hash_table.load_factor();
+  double load_factor = hash_table.measureLoadFactor();
 
-  // printf("The load factor is %.2f, number of buckets %d\n", load_factor,
-  // num_buckets); validation:
+  printf("The load factor is %.2f, number of buckets %d\n", load_factor,
+         num_buckets);
+
+  // ==== validation:
   for (int i = 0; i < num_queries; i++) {
     if (h_correct_result[i] != h_result[i]) {
       printf("### wrong result at index %d: [%d] -> %d, but should be %d\n", i,
