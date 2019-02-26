@@ -26,6 +26,7 @@
 
 // class declaration:
 #include "concurrent/slab_hash_context.cuh"
+#include "phase-concurrent/slab_hash_context.cuh"
 
 // warp implementations of member functions:
 #include "concurrent/warp/delete.cuh"

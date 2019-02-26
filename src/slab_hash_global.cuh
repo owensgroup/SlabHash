@@ -49,20 +49,23 @@ struct __align__(32) concurrent_slab {
   uint32_t ptr_index[2];
 };
 
+template <typename KeyT, typename ValueT>
+struct __align__(32) phase_concurrent_slab {
+  static constexpr uint32_t NUM_ELEMENTS_PER_SLAB = 31u;
+  // main slab (128 bytes), contain keys
+  KeyT keys[NUM_ELEMENTS_PER_SLAB];
+  uint32_t ptr_index[1];
+  // value storage:
+  ValueT values[NUM_ELEMENTS_PER_SLAB];
+};
 /*
  * Different types of slab hash:
  * 1. Concurrent map: it assumes that all operations can be performed
  * concurrently
- * 2. Phase-concurrent map: it assumes updates and searches are done in
- * different phases
+ * 2. phase-concurrent map: supports concurrent updates, and concurrent
+ * searches, but not a mixture of both
  */
 enum class SlabHashType { ConcurrentMap, PhaseConcurrentMap };
-
-// template <typename KeyT,
-//           typename ValueT,
-//           uint32_t DEVICE_IDX,
-//           SlabHashType SlabHashT>
-// class GpuSlabHash;
 
 template <typename KeyT, typename ValueT, SlabHashType SlabHashT>
 struct GpuSlabHashContext;
