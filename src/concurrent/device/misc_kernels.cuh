@@ -25,6 +25,7 @@ __global__ void bucket_count_kernel(
     GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap> slab_hash,
     uint32_t* d_count_result,
     uint32_t num_buckets) {
+  using SlabHash = GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap>;
   // global warp ID
   uint32_t tid = threadIdx.x + blockIdx.x * blockDim.x;
   uint32_t wid = tid >> 5;
@@ -43,13 +44,13 @@ __global__ void bucket_count_kernel(
   uint32_t src_unit_data = *slab_hash.getPointerFromBucket(wid, laneId);
 
   count += __popc(__ballot_sync(0xFFFFFFFF, src_unit_data != EMPTY_KEY) &
-                  REGULAR_NODE_KEY_MASK);
+                  SlabHash::REGULAR_NODE_KEY_MASK);
   uint32_t next = __shfl_sync(0xFFFFFFFF, src_unit_data, 31, 32);
 
-  while (next != EMPTY_INDEX_POINTER) {
+  while (next != SlabHash::EMPTY_INDEX_POINTER) {
     src_unit_data = *slab_hash.getPointerFromSlab(next, laneId);
     count += __popc(__ballot_sync(0xFFFFFFFF, src_unit_data != EMPTY_KEY) &
-                    REGULAR_NODE_KEY_MASK);
+                    SlabHash::REGULAR_NODE_KEY_MASK);
     next = __shfl_sync(0xFFFFFFFF, src_unit_data, 31, 32);
   }
   // writing back the results:

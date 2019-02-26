@@ -33,12 +33,12 @@ static constexpr uint32_t EMPTY_KEY = 0xFFFFFFFF;
 static constexpr uint32_t EMPTY_VALUE = 0xFFFFFFFF;
 static constexpr uint64_t EMPTY_PAIR_64 = 0xFFFFFFFFFFFFFFFFLL;
 static constexpr uint32_t WARP_WIDTH = 32;
-static constexpr uint32_t A_INDEX_POINTER = 0xFFFFFFFE;
-static constexpr uint32_t EMPTY_INDEX_POINTER = 0xFFFFFFFF;
-static constexpr uint32_t BASE_UNIT_SIZE = WARP_WIDTH;
-static constexpr uint32_t REGULAR_NODE_ADDRESS_MASK = 0x30000000;
-static constexpr uint32_t REGULAR_NODE_DATA_MASK = 0x3FFFFFFF;
-static constexpr uint32_t REGULAR_NODE_KEY_MASK = 0x15555555;
+// static constexpr uint32_t A_INDEX_POINTER = 0xFFFFFFFE;
+// static constexpr uint32_t EMPTY_INDEX_POINTER = 0xFFFFFFFF;
+// static constexpr uint32_t BASE_UNIT_SIZE = WARP_WIDTH;
+// static constexpr uint32_t REGULAR_NODE_ADDRESS_MASK = 0x30000000;
+// static constexpr uint32_t REGULAR_NODE_DATA_MASK = 0x3FFFFFFF;
+// static constexpr uint32_t REGULAR_NODE_KEY_MASK = 0x15555555;
 static constexpr uint32_t SEARCH_NOT_FOUND = 0xFFFFFFFF;
 
 // only works with up to 32-bit key/values

@@ -1,6 +1,6 @@
 set(CUHFILES
 	slab_hash_global.cuh
-	concurrent/slab_hash.cuh)
+	slab_hash.cuh)
 
 cuda_add_library(slab_hash STATIC
 	${CUHFILES}
