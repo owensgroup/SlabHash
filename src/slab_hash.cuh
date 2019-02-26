@@ -19,6 +19,7 @@
 #include <cassert>
 #include <iostream>
 #include <random>
+#include <typeinfo>
 
 // global declarations
 #include "slab_hash_global.cuh"
@@ -40,8 +41,11 @@
 /*
  * This class owns the allocated memory for the hash table
  */
-template <typename KeyT, typename ValueT, uint32_t DEVICE_IDX>
-class GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashType::ConcurrentMap> {
+template <typename KeyT,
+          typename ValueT,
+          uint32_t DEVICE_IDX,
+          SlabHashType SlabHashT>
+class GpuSlabHash {
  private:
   // fixed known parameters:
   static constexpr uint32_t BLOCKSIZE_ = 128;
@@ -57,11 +61,13 @@ class GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashType::ConcurrentMap> {
   uint32_t num_buckets_;
 
   // a raw pointer to the initial allocated memory for all buckets
-  concurrent_slab<KeyT, ValueT>* d_table_;
+  int8_t* d_table_;
+  size_t slab_unit_size_;  // size of each slab unit in bytes (might differ
+                           // based on the type)
 
   // slab hash context, contains everything that a GPU application needs to be
   // able to use this data structure
-  GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap> gpu_context_;
+  GpuSlabHashContext<KeyT, ValueT, SlabHashT> gpu_context_;
 
   // const pointer to an allocator that all instances of slab hash are going to
   // use. The allocator itself is not owned by this class
@@ -73,24 +79,23 @@ class GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashType::ConcurrentMap> {
               const time_t seed = 0)
       : num_buckets_(num_buckets),
         d_table_(nullptr),
+        slab_unit_size_(0),
         dynamic_allocator_(dynamic_allocator) {
-    // a single slab on a ConcurrentMap should be 128 bytes
-    assert(sizeof(concurrent_slab<KeyT, ValueT>) ==
-           (WARP_WIDTH_ * sizeof(uint32_t)));
-
     int32_t devCount = 0;
     CHECK_CUDA_ERROR(cudaGetDeviceCount(&devCount));
     assert(DEVICE_IDX < devCount);
 
     CHECK_CUDA_ERROR(cudaSetDevice(DEVICE_IDX));
 
+    slab_unit_size_ =
+        GpuSlabHashContext<KeyT, ValueT, SlabHashT>::getSlabUnitSize();
+
     // allocating initial buckets:
     CHECK_CUDA_ERROR(
-        cudaMalloc((void**)&d_table_,
-                   sizeof(concurrent_slab<KeyT, ValueT>) * num_buckets_));
+        cudaMalloc((void**)&d_table_, slab_unit_size_ * num_buckets_));
 
-    CHECK_CUDA_ERROR(cudaMemset(
-        d_table_, 0xFF, sizeof(concurrent_slab<KeyT, ValueT>) * num_buckets_));
+    CHECK_CUDA_ERROR(
+        cudaMemset(d_table_, 0xFF, slab_unit_size_ * num_buckets_));
 
     // creating a random number generator:
     std::mt19937 rng(seed ? seed : time(0));
@@ -143,13 +148,15 @@ class GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashType::ConcurrentMap> {
   }
 };
 
-template <typename KeyT, typename ValueT, uint32_t DEVICE_IDX>
-std::string GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashType::ConcurrentMap>::
-    to_string() {
+template <typename KeyT,
+          typename ValueT,
+          uint32_t DEVICE_IDX,
+          SlabHashType SlabHashT>
+std::string GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashT>::to_string() {
   std::string result;
   result += " ==== GpuSlabHash: \n";
   result += "\t Running on device \t\t " + std::to_string(DEVICE_IDX) + "\n";
-  result += "\t SlabHashType:     \t\t ConcurrentMap\n";
+  result += "\t SlabHashType:     \t\t " + gpu_context_.getSlabHashTypeName() + "\n";
   result += "\t Number of buckets:\t\t " + std::to_string(num_buckets_) + "\n";
   result +=
       "\t d_table_ address: \t\t " +
@@ -160,9 +167,12 @@ std::string GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashType::ConcurrentMap>::
   return result;
 }
 
-template <typename KeyT, typename ValueT, uint32_t DEVICE_IDX>
-double GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashType::ConcurrentMap>::
-    computeLoadFactor(int flag = 0) {
+template <typename KeyT,
+          typename ValueT,
+          uint32_t DEVICE_IDX,
+          SlabHashType SlabHashT>
+double GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashT>::computeLoadFactor(
+    int flag = 0) {
   uint32_t* h_bucket_count = new uint32_t[num_buckets_];
   uint32_t* d_bucket_count;
   CHECK_CUDA_ERROR(
@@ -171,8 +181,7 @@ double GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashType::ConcurrentMap>::
       cudaMemset(d_bucket_count, 0, sizeof(uint32_t) * num_buckets_));
 
   const auto& dynamic_alloc = gpu_context_.getAllocatorContext();
-  const uint32_t num_super_blocks =
-      dynamic_alloc.num_super_blocks_;
+  const uint32_t num_super_blocks = dynamic_alloc.num_super_blocks_;
   uint32_t* h_count_super_blocks = new uint32_t[num_super_blocks];
   uint32_t* d_count_super_blocks;
   CHECK_CUDA_ERROR(cudaMalloc((void**)&d_count_super_blocks,
@@ -199,8 +208,7 @@ double GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashType::ConcurrentMap>::
   }
 
   // counting total number of allocated memory units:
-  int num_mem_units =
-      dynamic_alloc.NUM_MEM_BLOCKS_PER_SUPER_BLOCK_ * 32;
+  int num_mem_units = dynamic_alloc.NUM_MEM_BLOCKS_PER_SUPER_BLOCK_ * 32;
   int num_cuda_blocks = (num_mem_units + blocksize - 1) / blocksize;
   compute_stats_allocators<<<num_cuda_blocks, blocksize>>>(d_count_super_blocks,
                                                            gpu_context_);
