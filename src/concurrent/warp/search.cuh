@@ -21,7 +21,7 @@
 //================================================
 template <typename KeyT, typename ValueT>
 __device__ __forceinline__ void
-GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap>::searchKey(
+GpuSlabHashContext<KeyT, ValueT, ConcurrentMap<KeyT, ValueT>>::searchKey(
     bool& to_be_searched,
     const uint32_t& laneId,
     const KeyT& myKey,
@@ -77,7 +77,7 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap>::searchKey(
 //================================================
 template <typename KeyT, typename ValueT>
 __device__ __forceinline__ void
-GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap>::searchKeyBulk(
+GpuSlabHashContext<KeyT, ValueT, ConcurrentMap<KeyT, ValueT>>::searchKeyBulk(
     const uint32_t& laneId,
     const KeyT& myKey,
     ValueT& myValue,

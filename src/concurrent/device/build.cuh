@@ -23,7 +23,7 @@ __global__ void build_table_kernel(
     KeyT* d_key,
     ValueT* d_value,
     uint32_t num_keys,
-    GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap> slab_hash) {
+    GpuSlabHashContext<KeyT, ValueT, ConcurrentMap<KeyT, ValueT>> slab_hash) {
   uint32_t tid = threadIdx.x + blockIdx.x * blockDim.x;
   uint32_t laneId = threadIdx.x & 0x1F;
 

@@ -45,7 +45,7 @@
 template <typename KeyT,
           typename ValueT,
           uint32_t DEVICE_IDX,
-          SlabHashType SlabHashT>
+          class SlabHashT>
 class GpuSlabHash {
  private:
   // fixed known parameters:
@@ -154,7 +154,7 @@ class GpuSlabHash {
 template <typename KeyT,
           typename ValueT,
           uint32_t DEVICE_IDX,
-          SlabHashType SlabHashT>
+          class SlabHashT>
 std::string GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashT>::to_string() {
   std::string result;
   result += " ==== GpuSlabHash: \n";
@@ -174,7 +174,7 @@ std::string GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashT>::to_string() {
 template <typename KeyT,
           typename ValueT,
           uint32_t DEVICE_IDX,
-          SlabHashType SlabHashT>
+          class SlabHashT>
 double GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashT>::computeLoadFactor(
     int flag = 0) {
   uint32_t* h_bucket_count = new uint32_t[num_buckets_];

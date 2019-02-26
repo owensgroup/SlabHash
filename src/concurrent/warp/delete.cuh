@@ -18,7 +18,7 @@
 
 template <typename KeyT, typename ValueT>
 __device__ __forceinline__ void
-GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap>::deleteKey(
+GpuSlabHashContext<KeyT, ValueT, ConcurrentMap<KeyT, ValueT>>::deleteKey(
     bool& to_be_deleted,
     const uint32_t& laneId,
     const KeyT& myKey,

@@ -23,7 +23,7 @@
  */
 template <typename KeyT, typename ValueT>
 __device__ __forceinline__ void
-GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap>::insertPair(
+GpuSlabHashContext<KeyT, ValueT, ConcurrentMap<KeyT, ValueT>>::insertPair(
     bool& to_be_inserted,
     const uint32_t& laneId,
     const KeyT& myKey,

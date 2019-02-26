@@ -23,7 +23,7 @@
  * (i.e., d_table_)
  */
 template <typename KeyT, typename ValueT>
-class GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap> {
+class GpuSlabHashContext<KeyT, ValueT, ConcurrentMap<KeyT, ValueT>> {
  public:
   // fixed known parameters:
   static constexpr uint32_t PRIME_DIVISOR_ = 4294967291u;
@@ -38,16 +38,16 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap> {
   GpuSlabHashContext()
       : num_buckets_(0), hash_x_(0), hash_y_(0), d_table_(nullptr) {
     // a single slab on a ConcurrentMap should be 128 bytes
-    assert(sizeof(concurrent_slab<KeyT, ValueT>) ==
+    assert(sizeof(typename ConcurrentMap<KeyT, ValueT>::SlabTypeT) ==
            (WARP_WIDTH_ * sizeof(uint32_t)));
   }
 
   static size_t getSlabUnitSize() {
-    return sizeof(concurrent_slab<KeyT, ValueT>);
+    return sizeof(typename ConcurrentMap<KeyT, ValueT>::SlabTypeT);
   }
 
   static std::string getSlabHashTypeName() {
-    return std::string("ConcurrentMap");
+    return ConcurrentMap<KeyT, ValueT>::getTypeName();
   }
 
   __host__ void initParameters(const uint32_t num_buckets,
@@ -58,7 +58,9 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap> {
     num_buckets_ = num_buckets;
     hash_x_ = hash_x;
     hash_y_ = hash_y;
-    d_table_ = reinterpret_cast<concurrent_slab<KeyT, ValueT>*>(d_table);
+    d_table_ =
+        reinterpret_cast<typename ConcurrentMap<KeyT, ValueT>::SlabTypeT*>(
+            d_table);
     dynamic_allocator_ = *allocator_ctx;
   }
 
@@ -66,8 +68,9 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap> {
     return dynamic_allocator_;
   }
 
-  __device__ __host__ __forceinline__ concurrent_slab<KeyT, ValueT>*
-  getDeviceTablePointer() {
+  __device__ __host__ __forceinline__
+      typename ConcurrentMap<KeyT, ValueT>::SlabTypeT*
+      getDeviceTablePointer() {
     return d_table_;
   }
 
@@ -138,7 +141,7 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap> {
   uint32_t num_buckets_;
   uint32_t hash_x_;
   uint32_t hash_y_;
-  concurrent_slab<KeyT, ValueT>* d_table_;
+  typename ConcurrentMap<KeyT, ValueT>::SlabTypeT* d_table_;
   // a copy of dynamic allocator's context to be used on the GPU
   AllocatorContextT dynamic_allocator_;
 };
