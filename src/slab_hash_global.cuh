@@ -49,15 +49,26 @@ struct __align__(32) concurrent_slab {
   uint32_t ptr_index[2];
 };
 
+// this slab structure is meant to be used in either concurrent sets,
+// or phase-concurrent maps.
+// | key 0 | key 1 | key 2 | ... | key 30 | next_ptr |
+template <typename KeyT>
+struct __align__(32) key_only_slab {
+  static constexpr uint32_t NUM_ELEMENTS_PER_SLAB = 31u;
+  KeyT keys[NUM_ELEMENTS_PER_SLAB];
+  uint32_t next_ptr_index[1];
+};
+
 template <typename KeyT, typename ValueT>
 struct __align__(32) phase_concurrent_slab {
   static constexpr uint32_t NUM_ELEMENTS_PER_SLAB = 31u;
   // main slab (128 bytes), contain keys
-  KeyT keys[NUM_ELEMENTS_PER_SLAB];
-  uint32_t ptr_index[1];
+  key_only_slab<KeyT> keys;
+
   // value storage:
   ValueT values[NUM_ELEMENTS_PER_SLAB];
 };
+
 /*
  * Different types of slab hash:
  * 1. Concurrent map: it assumes that all operations can be performed
@@ -65,9 +76,31 @@ struct __align__(32) phase_concurrent_slab {
  * 2. phase-concurrent map: supports concurrent updates, and concurrent
  * searches, but not a mixture of both
  */
-enum class SlabHashType { ConcurrentMap, PhaseConcurrentMap };
+// enum class SlabHashType { ConcurrentMap, PhaseConcurrentMap };
 
-template <typename KeyT, typename ValueT, SlabHashType SlabHashT>
+template <typename KeyT, typename ValueT>
+class ConcurrentMap {
+ public:
+  using SlabTypeT = concurrent_slab<KeyT, ValueT>;
+
+  static std::string getTypeName() { return std::string("ConcurrentMap"); }
+};
+
+template <typename KeyT, typename ValueT>
+class ConcurrentSet {
+ public:
+  using SlabTypeT = key_only_slab<KeyT>;
+  static std::string getTypeName() { return std::string("ConcurrentSet"); }
+};
+
+template <typename KeyT, typename ValueT>
+class PhaseConcurrentMap {
+ public:
+  using SlabTypeT = phase_concurrent_slab<KeyT, ValueT>;
+  static std::string getTypeName() { return std::string("PhaseConcurrentMap"); }
+};
+
+template <typename KeyT, typename ValueT, class SlabHashT>
 struct GpuSlabHashContext;
 
 // The custom allocator that is being used for this code:

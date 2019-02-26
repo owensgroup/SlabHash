@@ -22,15 +22,13 @@
  * (i.e., d_table_)
  */
 template <typename KeyT, typename ValueT>
-class GpuSlabHashContext<KeyT, ValueT, SlabHashType::PhaseConcurrentMap> {
+class GpuSlabHashContext<KeyT, ValueT, PhaseConcurrentMap<KeyT, ValueT>> {
  public:
   GpuSlabHashContext()
       : num_buckets_(0), hash_x_(0), hash_y_(0), d_table_(nullptr) {
     // a single slab on a ConcurrentMap should be 128 bytes
     printf("phase concurrent slab size is %d\n",
            sizeof(phase_concurrent_slab<KeyT, ValueT>));
-    // assert(sizeof(phase_concurrent_slab<KeyT, ValueT>) ==
-    //        (WARP_WIDTH_ * sizeof(uint32_t)));
   }
 
   static size_t getSlabUnitSize() {

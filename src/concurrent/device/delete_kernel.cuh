@@ -20,7 +20,7 @@ template <typename KeyT, typename ValueT>
 __global__ void delete_table_keys(
     KeyT* d_key_deleted,
     uint32_t num_keys,
-    GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap> slab_hash) {
+    GpuSlabHashContext<KeyT, ValueT, ConcurrentMap<KeyT, ValueT>> slab_hash) {
   uint32_t tid = threadIdx.x + blockIdx.x * blockDim.x;
   uint32_t laneId = threadIdx.x & 0x1F;
 

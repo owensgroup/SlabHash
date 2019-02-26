@@ -22,7 +22,7 @@ __global__ void search_table(
     KeyT* d_queries,
     ValueT* d_results,
     uint32_t num_queries,
-    GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap> slab_hash) {
+    GpuSlabHashContext<KeyT, ValueT, ConcurrentMap<KeyT, ValueT>> slab_hash) {
   uint32_t tid = threadIdx.x + blockIdx.x * blockDim.x;
   uint32_t laneId = threadIdx.x & 0x1F;
 
@@ -57,7 +57,7 @@ __global__ void search_table_bulk(
     KeyT* d_queries,
     ValueT* d_results,
     uint32_t num_queries,
-    GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap> slab_hash) {
+    GpuSlabHashContext<KeyT, ValueT, ConcurrentMap<KeyT, ValueT>> slab_hash) {
   uint32_t tid = threadIdx.x + blockIdx.x * blockDim.x;
   uint32_t laneId = threadIdx.x & 0x1F;
 
