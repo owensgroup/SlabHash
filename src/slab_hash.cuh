@@ -25,8 +25,8 @@
 #include "slab_hash_global.cuh"
 
 // class declaration:
-#include "concurrent/slab_hash_context.cuh"
-#include "phase-concurrent/slab_hash_context.cuh"
+#include "concurrent/context_concurrent.cuh"
+#include "phase_concurrent/context_phase_concurrent.cuh"
 
 // warp implementations of member functions:
 #include "concurrent/warp/delete.cuh"
@@ -82,6 +82,8 @@ class GpuSlabHash {
         d_table_(nullptr),
         slab_unit_size_(0),
         dynamic_allocator_(dynamic_allocator) {
+    assert(dynamic_allocator &&
+           "No proper dynamic allocator attached to the slab hash.");
     int32_t devCount = 0;
     CHECK_CUDA_ERROR(cudaGetDeviceCount(&devCount));
     assert(DEVICE_IDX < devCount);
@@ -157,7 +159,8 @@ std::string GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashT>::to_string() {
   std::string result;
   result += " ==== GpuSlabHash: \n";
   result += "\t Running on device \t\t " + std::to_string(DEVICE_IDX) + "\n";
-  result += "\t SlabHashType:     \t\t " + gpu_context_.getSlabHashTypeName() + "\n";
+  result +=
+      "\t SlabHashType:     \t\t " + gpu_context_.getSlabHashTypeName() + "\n";
   result += "\t Number of buckets:\t\t " + std::to_string(num_buckets_) + "\n";
   result +=
       "\t d_table_ address: \t\t " +
