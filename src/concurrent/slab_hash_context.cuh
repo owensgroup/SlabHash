@@ -15,6 +15,8 @@
  */
 
 #pragma once
+#include <cassert>
+
 /*
  * This is the main class that will be shallowly copied into the device to be
  * used at runtime. This class does not own the allocated memory on the gpu
@@ -27,24 +29,36 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap> {
   static constexpr uint32_t PRIME_DIVISOR_ = 4294967291u;
   static constexpr uint32_t A_INDEX_POINTER = 0xFFFFFFFE;
   static constexpr uint32_t EMPTY_INDEX_POINTER = 0xFFFFFFFF;
-  static constexpr uint32_t WARP_WIDTH = 32;
-  static constexpr uint32_t BASE_UNIT_SIZE = WARP_WIDTH;
+  static constexpr uint32_t WARP_WIDTH_ = 32;
+  static constexpr uint32_t BASE_UNIT_SIZE = WARP_WIDTH_;
   static constexpr uint32_t REGULAR_NODE_ADDRESS_MASK = 0x30000000;
   static constexpr uint32_t REGULAR_NODE_DATA_MASK = 0x3FFFFFFF;
   static constexpr uint32_t REGULAR_NODE_KEY_MASK = 0x15555555;
 
   GpuSlabHashContext()
-      : num_buckets_(0), hash_x_(0), hash_y_(0), d_table_(nullptr) {}
+      : num_buckets_(0), hash_x_(0), hash_y_(0), d_table_(nullptr) {
+    // a single slab on a ConcurrentMap should be 128 bytes
+    assert(sizeof(concurrent_slab<KeyT, ValueT>) ==
+           (WARP_WIDTH_ * sizeof(uint32_t)));
+  }
+
+  static size_t getSlabUnitSize() {
+    return sizeof(concurrent_slab<KeyT, ValueT>);
+  }
+
+  static std::string getSlabHashTypeName() {
+    return std::string("ConcurrentMap");
+  }
 
   __host__ void initParameters(const uint32_t num_buckets,
                                const uint32_t hash_x,
                                const uint32_t hash_y,
-                               concurrent_slab<KeyT, ValueT>* d_table,
+                               int8_t* d_table,
                                AllocatorContextT* allocator_ctx) {
     num_buckets_ = num_buckets;
     hash_x_ = hash_x;
     hash_y_ = hash_y;
-    d_table_ = d_table;
+    d_table_ = reinterpret_cast<concurrent_slab<KeyT, ValueT>*>(d_table);
     dynamic_allocator_ = *allocator_ctx;
   }
 
