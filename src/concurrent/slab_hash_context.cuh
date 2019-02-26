@@ -25,6 +25,13 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashType::ConcurrentMap> {
  public:
   // fixed known parameters:
   static constexpr uint32_t PRIME_DIVISOR_ = 4294967291u;
+  static constexpr uint32_t A_INDEX_POINTER = 0xFFFFFFFE;
+  static constexpr uint32_t EMPTY_INDEX_POINTER = 0xFFFFFFFF;
+  static constexpr uint32_t WARP_WIDTH = 32;
+  static constexpr uint32_t BASE_UNIT_SIZE = WARP_WIDTH;
+  static constexpr uint32_t REGULAR_NODE_ADDRESS_MASK = 0x30000000;
+  static constexpr uint32_t REGULAR_NODE_DATA_MASK = 0x3FFFFFFF;
+  static constexpr uint32_t REGULAR_NODE_KEY_MASK = 0x15555555;
 
   GpuSlabHashContext()
       : num_buckets_(0), hash_x_(0), hash_y_(0), d_table_(nullptr) {}

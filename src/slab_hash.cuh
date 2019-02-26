@@ -24,7 +24,7 @@
 #include "slab_hash_global.cuh"
 
 // class declaration:
-#include "slab_hash_context.cuh"
+#include "concurrent/slab_hash_context.cuh"
 
 // warp implementations of member functions:
 #include "concurrent/warp/delete.cuh"
