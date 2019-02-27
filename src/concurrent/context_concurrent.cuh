@@ -23,25 +23,25 @@
  * (i.e., d_table_)
  */
 template <typename KeyT, typename ValueT>
-class GpuSlabHashContext<KeyT, ValueT, ConcurrentMap<KeyT, ValueT>> {
+class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
  public:
   // fixed known parameters:
   static constexpr uint32_t PRIME_DIVISOR_ = 4294967291u;
   static constexpr uint32_t WARP_WIDTH_ = 32;
-  
+
   GpuSlabHashContext()
       : num_buckets_(0), hash_x_(0), hash_y_(0), d_table_(nullptr) {
     // a single slab on a ConcurrentMap should be 128 bytes
-    assert(sizeof(typename ConcurrentMap<KeyT, ValueT>::SlabTypeT) ==
+    assert(sizeof(typename ConcurrentMapT<KeyT, ValueT>::SlabTypeT) ==
            (WARP_WIDTH_ * sizeof(uint32_t)));
   }
 
   static size_t getSlabUnitSize() {
-    return sizeof(typename ConcurrentMap<KeyT, ValueT>::SlabTypeT);
+    return sizeof(typename ConcurrentMapT<KeyT, ValueT>::SlabTypeT);
   }
 
   static std::string getSlabHashTypeName() {
-    return ConcurrentMap<KeyT, ValueT>::getTypeName();
+    return ConcurrentMapT<KeyT, ValueT>::getTypeName();
   }
 
   __host__ void initParameters(const uint32_t num_buckets,
@@ -53,7 +53,7 @@ class GpuSlabHashContext<KeyT, ValueT, ConcurrentMap<KeyT, ValueT>> {
     hash_x_ = hash_x;
     hash_y_ = hash_y;
     d_table_ =
-        reinterpret_cast<typename ConcurrentMap<KeyT, ValueT>::SlabTypeT*>(
+        reinterpret_cast<typename ConcurrentMapT<KeyT, ValueT>::SlabTypeT*>(
             d_table);
     dynamic_allocator_ = *allocator_ctx;
   }
@@ -63,7 +63,7 @@ class GpuSlabHashContext<KeyT, ValueT, ConcurrentMap<KeyT, ValueT>> {
   }
 
   __device__ __host__ __forceinline__
-      typename ConcurrentMap<KeyT, ValueT>::SlabTypeT*
+      typename ConcurrentMapT<KeyT, ValueT>::SlabTypeT*
       getDeviceTablePointer() {
     return d_table_;
   }
@@ -115,7 +115,7 @@ class GpuSlabHashContext<KeyT, ValueT, ConcurrentMap<KeyT, ValueT>> {
       const uint32_t bucket_id,
       const uint32_t laneId) {
     return reinterpret_cast<uint32_t*>(d_table_) +
-           bucket_id * ConcurrentMap<KeyT, ValueT>::BASE_UNIT_SIZE + laneId;
+           bucket_id * ConcurrentMapT<KeyT, ValueT>::BASE_UNIT_SIZE + laneId;
   }
 
  private:
@@ -135,7 +135,7 @@ class GpuSlabHashContext<KeyT, ValueT, ConcurrentMap<KeyT, ValueT>> {
   uint32_t num_buckets_;
   uint32_t hash_x_;
   uint32_t hash_y_;
-  typename ConcurrentMap<KeyT, ValueT>::SlabTypeT* d_table_;
+  typename ConcurrentMapT<KeyT, ValueT>::SlabTypeT* d_table_;
   // a copy of dynamic allocator's context to be used on the GPU
   AllocatorContextT dynamic_allocator_;
 };

@@ -21,13 +21,13 @@
 //================================================
 template <typename KeyT, typename ValueT>
 __device__ __forceinline__ void
-GpuSlabHashContext<KeyT, ValueT, ConcurrentMap<KeyT, ValueT>>::searchKey(
+GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::searchKey(
     bool& to_be_searched,
     const uint32_t& laneId,
     const KeyT& myKey,
     ValueT& myValue,
     const uint32_t bucket_id) {
-  using SlabHashT = ConcurrentMap<KeyT, ValueT>;
+  using SlabHashT = ConcurrentMapT<KeyT, ValueT>;
   uint32_t work_queue = 0;
   uint32_t last_work_queue = work_queue;
   uint32_t next = SlabHashT::A_INDEX_POINTER;
@@ -79,12 +79,12 @@ GpuSlabHashContext<KeyT, ValueT, ConcurrentMap<KeyT, ValueT>>::searchKey(
 //================================================
 template <typename KeyT, typename ValueT>
 __device__ __forceinline__ void
-GpuSlabHashContext<KeyT, ValueT, ConcurrentMap<KeyT, ValueT>>::searchKeyBulk(
+GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::searchKeyBulk(
     const uint32_t& laneId,
     const KeyT& myKey,
     ValueT& myValue,
     const uint32_t bucket_id) {
-  using SlabHashT = ConcurrentMap<KeyT, ValueT>;
+  using SlabHashT = ConcurrentMapT<KeyT, ValueT>;
 #pragma unroll
   for (int src_lane = 0; src_lane < WARP_WIDTH; src_lane++) {
     bool is_top_of_list = true;

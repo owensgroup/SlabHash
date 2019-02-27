@@ -22,10 +22,10 @@
  */
 template <typename KeyT, typename ValueT>
 __global__ void bucket_count_kernel(
-    GpuSlabHashContext<KeyT, ValueT, ConcurrentMap<KeyT, ValueT>> slab_hash,
+    GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> slab_hash,
     uint32_t* d_count_result,
     uint32_t num_buckets) {
-  using SlabHashT = ConcurrentMap<KeyT, ValueT>;
+  using SlabHashT = ConcurrentMapT<KeyT, ValueT>;
   // global warp ID
   uint32_t tid = threadIdx.x + blockIdx.x * blockDim.x;
   uint32_t wid = tid >> 5;
@@ -67,7 +67,7 @@ __global__ void bucket_count_kernel(
 template <typename KeyT, typename ValueT>
 __global__ void compute_stats_allocators(
     uint32_t* d_count_super_block,
-    GpuSlabHashContext<KeyT, ValueT, ConcurrentMap<KeyT, ValueT>> slab_hash) {
+    GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> slab_hash) {
   uint32_t tid = threadIdx.x + blockIdx.x * blockDim.x;
 
   int num_bitmaps =
