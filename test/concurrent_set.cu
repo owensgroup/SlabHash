@@ -100,7 +100,7 @@ int main(int argc, char** argv) {
     std::swap(h_correct_result[i], h_correct_result[q_index[i]]);
   }
   // gpu_hash_table<KeyT, ValueT, DEVICE_ID> hash_table(num_keys, num_buckets, seed);
-  GpuSlabHash<KeyT, ValueT, DEVICE_ID, PhaseConcurrentMap<KeyT, ValueT>> mySet(1, nullptr);
+  GpuSlabHash<KeyT, ValueT, DEVICE_ID, SlabHashTypeT::ConcurrentSet> mySet(1, nullptr);
 
   // float build_time =
   //     hash_table.hash_build(h_key.data(), h_value.data(), num_keys);

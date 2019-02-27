@@ -24,7 +24,7 @@ class gpu_hash_table {
   uint32_t num_buckets_;
   int64_t seed_;
 
-  GpuSlabHash<KeyT, ValueT, DEVICE_IDX, ConcurrentMap<KeyT, ValueT>>*
+  GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashTypeT::ConcurrentMap>*
       slab_hash_;
 
   // the dynamic allocator that is being used for slab hash
@@ -61,7 +61,7 @@ class gpu_hash_table {
 
     // slab hash:
     slab_hash_ =
-        new GpuSlabHash<KeyT, ValueT, DEVICE_IDX, ConcurrentMap<KeyT, ValueT>>(
+        new GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashTypeT::ConcurrentMap>(
             num_buckets_, dynamic_allocator_, seed_);
     std::cout << slab_hash_->to_string() << std::endl;
   }

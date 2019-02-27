@@ -22,21 +22,19 @@
  * (i.e., d_table_)
  */
 template <typename KeyT, typename ValueT>
-class GpuSlabHashContext<KeyT, ValueT, PhaseConcurrentMap<KeyT, ValueT>> {
+class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentSet> {
  public:
   GpuSlabHashContext()
       : num_buckets_(0), hash_x_(0), hash_y_(0), d_table_(nullptr) {
     // a single slab on a ConcurrentMap should be 128 bytes
-    printf("phase concurrent slab size is %d\n",
-           sizeof(phase_concurrent_slab<KeyT, ValueT>));
   }
 
   static size_t getSlabUnitSize() {
-    return sizeof(phase_concurrent_slab<KeyT, ValueT>);
+    return sizeof(typename ConcurrentSetT<KeyT, ValueT>::SlabTypeT);
   }
 
   static std::string getSlabHashTypeName() {
-    return std::string("PhaseConcurrentMap");
+    return ConcurrentSetT<KeyT, ValueT>::getTypeName;
   }
 
   __host__ void initParameters(const uint32_t num_buckets,
@@ -47,7 +45,9 @@ class GpuSlabHashContext<KeyT, ValueT, PhaseConcurrentMap<KeyT, ValueT>> {
     num_buckets_ = num_buckets;
     hash_x_ = hash_x;
     hash_y_ = hash_y;
-    d_table_ = reinterpret_cast<phase_concurrent_slab<KeyT, ValueT>*>(d_table);
+    d_table_ =
+        reinterpret_cast<typename ConcurrentSetT<KeyT, ValueT>::SlabTypeT*>(
+            d_table);
     dynamic_allocator_ = *allocator_ctx;
   }
 
@@ -68,7 +68,7 @@ class GpuSlabHashContext<KeyT, ValueT, PhaseConcurrentMap<KeyT, ValueT>> {
   uint32_t num_buckets_;
   uint32_t hash_x_;
   uint32_t hash_y_;
-  phase_concurrent_slab<KeyT, ValueT>* d_table_;
+  typename ConcurrentSetT<KeyT, ValueT>::SlabTypeT* d_table_;
   // a copy of dynamic allocator's context to be used on the GPU
   AllocatorContextT dynamic_allocator_;
 };

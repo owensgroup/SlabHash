@@ -18,14 +18,14 @@
 
 template <typename KeyT, typename ValueT>
 __device__ __forceinline__ void
-GpuSlabHashContext<KeyT, ValueT, ConcurrentMap<KeyT, ValueT>>::deleteKey(
+GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::deleteKey(
     bool& to_be_deleted,
     const uint32_t& laneId,
     const KeyT& myKey,
     const uint32_t bucket_id) {
   // delete all instances of key
 
-  using SlabHashT = ConcurrentMap<KeyT, ValueT>;
+  using SlabHashT = ConcurrentMapT<KeyT, ValueT>;
   uint32_t work_queue = 0;
   uint32_t last_work_queue = 0;
   uint32_t next = SlabHashT::A_INDEX_POINTER;
