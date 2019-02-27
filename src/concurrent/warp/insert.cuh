@@ -29,44 +29,43 @@ GpuSlabHashContext<KeyT, ValueT, ConcurrentMap<KeyT, ValueT>>::insertPair(
     const KeyT& myKey,
     const ValueT& myValue,
     const uint32_t bucket_id) {
+  using SlabHashT = ConcurrentMap<KeyT, ValueT>;
   uint32_t work_queue = 0;
   uint32_t last_work_queue = 0;
-  uint32_t next = A_INDEX_POINTER;
+  uint32_t next = SlabHashT::A_INDEX_POINTER;
 
   while ((work_queue = __ballot_sync(0xFFFFFFFF, to_be_inserted))) {
     // to know whether it is a base node, or a regular node
     next = (last_work_queue != work_queue)
-               ? A_INDEX_POINTER
+               ? SlabHashT::A_INDEX_POINTER
                : next;  // a successfull insertion in the warp
     uint32_t src_lane = __ffs(work_queue) - 1;
     uint32_t src_bucket = __shfl_sync(0xFFFFFFFF, bucket_id, src_lane, 32);
 
-    uint32_t src_unit_data =
-        (next == A_INDEX_POINTER)
-            ? *(getPointerFromBucket(src_bucket, laneId))
-            : *(getPointerFromSlab(next, laneId));
+    uint32_t src_unit_data = (next == SlabHashT::A_INDEX_POINTER)
+                                 ? *(getPointerFromBucket(src_bucket, laneId))
+                                 : *(getPointerFromSlab(next, laneId));
     uint64_t old_key_value_pair = 0;
 
     uint32_t isEmpty = (__ballot_sync(0xFFFFFFFF, src_unit_data == EMPTY_KEY)) &
-                       REGULAR_NODE_KEY_MASK;
+                       SlabHashT::REGULAR_NODE_KEY_MASK;
     if (isEmpty == 0) {  // no empty slot available:
       uint32_t next_ptr = __shfl_sync(0xFFFFFFFF, src_unit_data, 31, 32);
-      if (next_ptr == EMPTY_INDEX_POINTER) {
+      if (next_ptr == SlabHashT::EMPTY_INDEX_POINTER) {
         // allocate a new node:
         uint32_t new_node_ptr = allocateSlab(laneId);
 
         // TODO: experiment if it's better to use lane 0 instead
         if (laneId == 31) {
-          const uint32_t* p =
-              (next == A_INDEX_POINTER)
-                  ? getPointerFromBucket(src_bucket, 31)
-                  : getPointerFromSlab(next, 31);
+          const uint32_t* p = (next == SlabHashT::A_INDEX_POINTER)
+                                  ? getPointerFromBucket(src_bucket, 31)
+                                  : getPointerFromSlab(next, 31);
 
-          uint32_t temp =
-              atomicCAS((unsigned int*)p, EMPTY_INDEX_POINTER, new_node_ptr);
+          uint32_t temp = atomicCAS(
+              (unsigned int*)p, SlabHashT::EMPTY_INDEX_POINTER, new_node_ptr);
           // check whether it was successful, and
           // free the allocated memory otherwise
-          if (temp != EMPTY_INDEX_POINTER) {
+          if (temp != SlabHashT::EMPTY_INDEX_POINTER) {
             freeSlab(new_node_ptr);
           }
         }
@@ -74,12 +73,11 @@ GpuSlabHashContext<KeyT, ValueT, ConcurrentMap<KeyT, ValueT>>::insertPair(
         next = next_ptr;
       }
     } else {  // there is an empty slot available
-      int dest_lane = __ffs(isEmpty & REGULAR_NODE_KEY_MASK) - 1;
+      int dest_lane = __ffs(isEmpty & SlabHashT::REGULAR_NODE_KEY_MASK) - 1;
       if (laneId == src_lane) {
-        const uint32_t* p =
-            (next == A_INDEX_POINTER)
-                ? getPointerFromBucket(src_bucket, dest_lane)
-                : getPointerFromSlab(next, dest_lane);
+        const uint32_t* p = (next == SlabHashT::A_INDEX_POINTER)
+                                ? getPointerFromBucket(src_bucket, dest_lane)
+                                : getPointerFromSlab(next, dest_lane);
 
         old_key_value_pair =
             atomicCAS((unsigned long long int*)p, EMPTY_PAIR_64,
