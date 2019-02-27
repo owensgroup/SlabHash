@@ -27,14 +27,8 @@ class GpuSlabHashContext<KeyT, ValueT, ConcurrentMap<KeyT, ValueT>> {
  public:
   // fixed known parameters:
   static constexpr uint32_t PRIME_DIVISOR_ = 4294967291u;
-  static constexpr uint32_t A_INDEX_POINTER = 0xFFFFFFFE;
-  static constexpr uint32_t EMPTY_INDEX_POINTER = 0xFFFFFFFF;
   static constexpr uint32_t WARP_WIDTH_ = 32;
-  static constexpr uint32_t BASE_UNIT_SIZE = WARP_WIDTH_;
-  static constexpr uint32_t REGULAR_NODE_ADDRESS_MASK = 0x30000000;
-  static constexpr uint32_t REGULAR_NODE_DATA_MASK = 0x3FFFFFFF;
-  static constexpr uint32_t REGULAR_NODE_KEY_MASK = 0x15555555;
-
+  
   GpuSlabHashContext()
       : num_buckets_(0), hash_x_(0), hash_y_(0), d_table_(nullptr) {
     // a single slab on a ConcurrentMap should be 128 bytes
@@ -120,8 +114,8 @@ class GpuSlabHashContext<KeyT, ValueT, ConcurrentMap<KeyT, ValueT>> {
   __device__ __forceinline__ uint32_t* getPointerFromBucket(
       const uint32_t bucket_id,
       const uint32_t laneId) {
-    return reinterpret_cast<uint32_t*>(d_table_) + bucket_id * BASE_UNIT_SIZE +
-           laneId;
+    return reinterpret_cast<uint32_t*>(d_table_) +
+           bucket_id * ConcurrentMap<KeyT, ValueT>::BASE_UNIT_SIZE + laneId;
   }
 
  private:

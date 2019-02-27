@@ -24,14 +24,16 @@ GpuSlabHashContext<KeyT, ValueT, ConcurrentMap<KeyT, ValueT>>::deleteKey(
     const KeyT& myKey,
     const uint32_t bucket_id) {
   // delete all instances of key
+
+  using SlabHashT = ConcurrentMap<KeyT, ValueT>;
   uint32_t work_queue = 0;
   uint32_t last_work_queue = 0;
-  uint32_t next = A_INDEX_POINTER;
+  uint32_t next = SlabHashT::A_INDEX_POINTER;
 
   while ((work_queue = __ballot_sync(0xFFFFFFFF, to_be_deleted))) {
     // to know whether it is a base node, or a regular node
     next = (last_work_queue != work_queue)
-               ? A_INDEX_POINTER
+               ? SlabHashT::A_INDEX_POINTER
                : next;  // a successfull insertion in the warp
     uint32_t src_lane = __ffs(work_queue) - 1;
     uint32_t src_key =
@@ -45,25 +47,26 @@ GpuSlabHashContext<KeyT, ValueT, ConcurrentMap<KeyT, ValueT>>::deleteKey(
     // index, and the memory unit index
 
     const uint32_t src_unit_data =
-        (next == A_INDEX_POINTER) ? *(getPointerFromBucket(src_bucket, laneId))
-                                  : *(getPointerFromSlab(next, laneId));
+        (next == SlabHashT::A_INDEX_POINTER)
+            ? *(getPointerFromBucket(src_bucket, laneId))
+            : *(getPointerFromSlab(next, laneId));
 
     // looking for the item to be deleted:
     uint32_t isFound = (__ballot_sync(0xFFFFFFFF, src_unit_data == src_key)) &
-                       REGULAR_NODE_KEY_MASK;
+                       SlabHashT::REGULAR_NODE_KEY_MASK;
 
     if (isFound == 0) {  // no matching slot found:
       uint32_t next_ptr = __shfl_sync(0xFFFFFFFF, src_unit_data, 31, 32);
-      if (next_ptr == EMPTY_INDEX_POINTER) {
+      if (next_ptr == SlabHashT::EMPTY_INDEX_POINTER) {
         // not found:
         to_be_deleted = false;
       } else {
         next = next_ptr;
       }
     } else {  // The wanted key found:
-      int dest_lane = __ffs(isFound & REGULAR_NODE_KEY_MASK) - 1;
+      int dest_lane = __ffs(isFound & SlabHashT::REGULAR_NODE_KEY_MASK) - 1;
       if (laneId == src_lane) {
-        uint32_t* p = (next == A_INDEX_POINTER)
+        uint32_t* p = (next == SlabHashT::A_INDEX_POINTER)
                           ? getPointerFromBucket(src_bucket, dest_lane)
                           : getPointerFromSlab(next, dest_lane);
         // deleting that item (no atomics)

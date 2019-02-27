@@ -27,13 +27,14 @@ GpuSlabHashContext<KeyT, ValueT, ConcurrentMap<KeyT, ValueT>>::searchKey(
     const KeyT& myKey,
     ValueT& myValue,
     const uint32_t bucket_id) {
+  using SlabHashT = ConcurrentMap<KeyT, ValueT>;
   uint32_t work_queue = 0;
   uint32_t last_work_queue = work_queue;
-  uint32_t next = A_INDEX_POINTER;
+  uint32_t next = SlabHashT::A_INDEX_POINTER;
 
   while ((work_queue = __ballot_sync(0xFFFFFFFF, to_be_searched))) {
     next = (last_work_queue != work_queue)
-               ? A_INDEX_POINTER
+               ? SlabHashT::A_INDEX_POINTER
                : next;  // a successfull insertion in the warp
     uint32_t src_lane = __ffs(work_queue) - 1;
     uint32_t src_bucket = __shfl_sync(0xFFFFFFFF, bucket_id, src_lane, 32);
@@ -43,15 +44,16 @@ GpuSlabHashContext<KeyT, ValueT, ConcurrentMap<KeyT, ValueT>>::searchKey(
                         reinterpret_cast<const unsigned char*>(&myKey)),
                     src_lane, 32);
     const uint32_t src_unit_data =
-        (next == A_INDEX_POINTER) ? *(getPointerFromBucket(src_bucket, laneId))
-                                  : *(getPointerFromSlab(next, laneId));
+        (next == SlabHashT::A_INDEX_POINTER)
+            ? *(getPointerFromBucket(src_bucket, laneId))
+            : *(getPointerFromSlab(next, laneId));
     int found_lane =
         __ffs(__ballot_sync(0xFFFFFFFF, src_unit_data == wanted_key) &
-              REGULAR_NODE_KEY_MASK) -
+              SlabHashT::REGULAR_NODE_KEY_MASK) -
         1;
     if (found_lane < 0) {  // not found
       uint32_t next_ptr = __shfl_sync(0xFFFFFFFF, src_unit_data, 31, 32);
-      if (next_ptr == EMPTY_INDEX_POINTER) {  // not found
+      if (next_ptr == SlabHashT::EMPTY_INDEX_POINTER) {  // not found
         if (laneId == src_lane) {
           myValue = static_cast<ValueT>(SEARCH_NOT_FOUND);
           to_be_searched = false;
@@ -82,10 +84,11 @@ GpuSlabHashContext<KeyT, ValueT, ConcurrentMap<KeyT, ValueT>>::searchKeyBulk(
     const KeyT& myKey,
     ValueT& myValue,
     const uint32_t bucket_id) {
+  using SlabHashT = ConcurrentMap<KeyT, ValueT>;
 #pragma unroll
   for (int src_lane = 0; src_lane < WARP_WIDTH; src_lane++) {
     bool is_top_of_list = true;
-    uint32_t next_ptr = EMPTY_INDEX_POINTER;
+    uint32_t next_ptr = SlabHashT::EMPTY_INDEX_POINTER;
     uint32_t found_lane_plus_1 = 0;
     uint32_t src_bucket = __shfl_sync(0xFFFFFFFF, bucket_id, src_lane, 32);
     uint32_t wanted_key =
@@ -103,7 +106,7 @@ GpuSlabHashContext<KeyT, ValueT, ConcurrentMap<KeyT, ValueT>>::searchKeyBulk(
       // if found_lane_plus_1 == 0, then the query is not found
       found_lane_plus_1 =
           __ffs(__ballot_sync(0xFFFFFFFF, src_unit_data == wanted_key) &
-                REGULAR_NODE_KEY_MASK);
+                SlabHashT::REGULAR_NODE_KEY_MASK);
       // values are stored at (found_value + 1)
       uint32_t found_value =
           __shfl_sync(0xFFFFFFFF, src_unit_data, found_lane_plus_1, 32);
@@ -113,6 +116,7 @@ GpuSlabHashContext<KeyT, ValueT, ConcurrentMap<KeyT, ValueT>>::searchKeyBulk(
                           reinterpret_cast<const unsigned char*>(&found_value))
                     : myValue;
       is_top_of_list = false;
-    } while ((next_ptr != EMPTY_INDEX_POINTER) && (found_lane_plus_1 == 0));
+    } while ((next_ptr != SlabHashT::EMPTY_INDEX_POINTER) &&
+             (found_lane_plus_1 == 0));
   }
 }

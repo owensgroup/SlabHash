@@ -76,11 +76,18 @@ struct __align__(32) phase_concurrent_slab {
  * 2. phase-concurrent map: supports concurrent updates, and concurrent
  * searches, but not a mixture of both
  */
-// enum class SlabHashType { ConcurrentMap, PhaseConcurrentMap };
 
 template <typename KeyT, typename ValueT>
 class ConcurrentMap {
  public:
+  // fixed parameters for the data structure
+  static constexpr uint32_t A_INDEX_POINTER = 0xFFFFFFFE;
+  static constexpr uint32_t EMPTY_INDEX_POINTER = 0xFFFFFFFF;  
+  static constexpr uint32_t BASE_UNIT_SIZE = 32;
+  static constexpr uint32_t REGULAR_NODE_ADDRESS_MASK = 0x30000000;
+  static constexpr uint32_t REGULAR_NODE_DATA_MASK = 0x3FFFFFFF;
+  static constexpr uint32_t REGULAR_NODE_KEY_MASK = 0x15555555;
+
   using SlabTypeT = concurrent_slab<KeyT, ValueT>;
 
   static std::string getTypeName() { return std::string("ConcurrentMap"); }
