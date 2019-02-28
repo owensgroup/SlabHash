@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
   //======================================
   // Building my hash table:
   //======================================
-  uint32_t num_keys = 1<<20;
+  uint32_t num_keys = 1 << 20;
 
   float expected_chain = 0.6f;
   uint32_t num_elements_per_unit = 15;
@@ -98,7 +98,8 @@ int main(int argc, char** argv) {
     std::swap(h_query[i], h_query[q_index[i]]);
     std::swap(h_correct_result[i], h_correct_result[q_index[i]]);
   }
-  gpu_hash_table<KeyT, ValueT, DEVICE_ID> hash_table(num_keys, num_buckets, seed);
+  gpu_hash_table<KeyT, ValueT, DEVICE_ID, SlabHashTypeT::ConcurrentMap>
+      hash_table(num_keys, num_buckets, seed);
 
   float build_time =
       hash_table.hash_build(h_key.data(), h_value.data(), num_keys);
@@ -109,7 +110,6 @@ int main(int argc, char** argv) {
   // // hash_table.print_bucket(0);
   printf("Hash table: \n");
   printf("num_keys = %d, num_buckets = %d\n", num_keys, num_buckets);
-  // printf("\t1) Hash table init in %.3f ms\n", init_time);
   printf("\t2) Hash table built in %.3f ms (%.3f M elements/s)\n", build_time,
          double(num_keys) / build_time / 1000.0);
   printf("\t3) Hash table search (%.2f) in %.3f ms (%.3f M queries/s)\n",

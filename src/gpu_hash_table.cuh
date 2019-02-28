@@ -17,15 +17,22 @@
 #pragma once
 #include "slab_hash.cuh"
 
-template <typename KeyT, typename ValueT, uint32_t DEVICE_IDX>
+/*
+ * This class acts as a helper class to simplify simulations around different
+ * kinds of slab hash implementations
+ */
+template <typename KeyT,
+          typename ValueT,
+          uint32_t DEVICE_IDX,
+          SlabHashTypeT SlabHashT>
 class gpu_hash_table {
  private:
   uint32_t max_keys_;
   uint32_t num_buckets_;
   int64_t seed_;
 
-  GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashTypeT::ConcurrentMap>*
-      slab_hash_;
+  // Slab hash invariant 
+  GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashT>* slab_hash_;
 
   // the dynamic allocator that is being used for slab hash
   DynamicAllocatorT* dynamic_allocator_;
@@ -61,7 +68,7 @@ class gpu_hash_table {
 
     // slab hash:
     slab_hash_ =
-        new GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashTypeT::ConcurrentMap>(
+        new GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashT>(
             num_buckets_, dynamic_allocator_, seed_);
     std::cout << slab_hash_->to_string() << std::endl;
   }

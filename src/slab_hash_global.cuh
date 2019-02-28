@@ -108,6 +108,13 @@ class PhaseConcurrentMapT {
   static std::string getTypeName() { return std::string("PhaseConcurrentMap"); }
 };
 
+// the main class to be specialized for different types of hash tables
+template <typename KeyT,
+          typename ValueT,
+          uint32_t DEVICE_IDX,
+          SlabHashTypeT SlabHashT>
+class GpuSlabHash;
+
 template <typename KeyT, typename ValueT, SlabHashTypeT SlabHashT>
 class GpuSlabHashContext;
 
