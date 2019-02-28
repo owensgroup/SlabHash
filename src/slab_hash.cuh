@@ -26,7 +26,7 @@
 
 // class declaration:
 #include "concurrent_map/cmap_class.cuh"
-#include "phase_concurrent/context_phase_concurrent.cuh"
+#include "concurrent_set/cset_class.cuh"
 
 // warp implementations of member functions:
 #include "concurrent_map/warp/delete.cuh"
