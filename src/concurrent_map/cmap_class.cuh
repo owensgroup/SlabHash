@@ -139,3 +139,89 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
   // a copy of dynamic allocator's context to be used on the GPU
   AllocatorContextT dynamic_allocator_;
 };
+
+/*
+ * This class owns the allocated memory for the hash table
+ */
+template <typename KeyT, typename ValueT, uint32_t DEVICE_IDX>
+class GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashTypeT::ConcurrentMap> {
+ private:
+  // fixed known parameters:
+  static constexpr uint32_t BLOCKSIZE_ = 128;
+  static constexpr uint32_t WARP_WIDTH_ = 32;
+  static constexpr uint32_t PRIME_DIVISOR_ = 4294967291u;
+
+  struct hash_function {
+    uint32_t x;
+    uint32_t y;
+  } hf_;
+
+  // total number of buckets (slabs) for this hash table
+  uint32_t num_buckets_;
+
+  // a raw pointer to the initial allocated memory for all buckets
+  int8_t* d_table_;
+  size_t slab_unit_size_;  // size of each slab unit in bytes (might differ
+                           // based on the type)
+
+  // slab hash context, contains everything that a GPU application needs to be
+  // able to use this data structure
+  GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> gpu_context_;
+
+  // const pointer to an allocator that all instances of slab hash are going to
+  // use. The allocator itself is not owned by this class
+  DynamicAllocatorT* dynamic_allocator_;
+
+ public:
+  GpuSlabHash(const uint32_t num_buckets,
+              DynamicAllocatorT* dynamic_allocator,
+              const time_t seed = 0)
+      : num_buckets_(num_buckets),
+        d_table_(nullptr),
+        slab_unit_size_(0),
+        dynamic_allocator_(dynamic_allocator) {
+    assert(dynamic_allocator &&
+           "No proper dynamic allocator attached to the slab hash.");
+    int32_t devCount = 0;
+    CHECK_CUDA_ERROR(cudaGetDeviceCount(&devCount));
+    assert(DEVICE_IDX < devCount);
+
+    CHECK_CUDA_ERROR(cudaSetDevice(DEVICE_IDX));
+
+    slab_unit_size_ =
+        GpuSlabHashContext<KeyT, ValueT,
+                           SlabHashTypeT::ConcurrentMap>::getSlabUnitSize();
+
+    // allocating initial buckets:
+    CHECK_CUDA_ERROR(
+        cudaMalloc((void**)&d_table_, slab_unit_size_ * num_buckets_));
+
+    CHECK_CUDA_ERROR(
+        cudaMemset(d_table_, 0xFF, slab_unit_size_ * num_buckets_));
+
+    // creating a random number generator:
+    std::mt19937 rng(seed ? seed : time(0));
+    hf_.x = rng() % PRIME_DIVISOR_;
+    if (hf_.x < 1)
+      hf_.x = 1;
+    hf_.y = rng() % PRIME_DIVISOR_;
+
+    // initializing the gpu_context_:
+    gpu_context_.initParameters(num_buckets_, hf_.x, hf_.y, d_table_,
+                                dynamic_allocator_->getContextPtr());
+  }
+
+  ~GpuSlabHash() {
+    CHECK_CUDA_ERROR(cudaSetDevice(DEVICE_IDX));
+    CHECK_CUDA_ERROR(cudaFree(d_table_));
+  }
+
+  // returns some debug information about the slab hash
+  std::string to_string();
+  double computeLoadFactor(int flag);
+
+  void buildBulk(KeyT* d_key, ValueT* d_value, uint32_t num_keys);
+  void searchIndividual(KeyT* d_query, ValueT* d_result, uint32_t num_queries);
+  void searchBulk(KeyT* d_query, ValueT* d_result, uint32_t num_queries);
+  void deleteIndividual(KeyT* d_key, uint32_t num_keys);
+};
