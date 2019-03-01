@@ -94,10 +94,20 @@ class ConcurrentMapT {
   static std::string getTypeName() { return std::string("ConcurrentMap"); }
 };
 
-template <typename KeyT, typename ValueT>
+template <typename KeyT>
 class ConcurrentSetT {
  public:
+
+  // fixed parameters for the data structure
+  static constexpr uint32_t A_INDEX_POINTER = 0xFFFFFFFE;
+  static constexpr uint32_t EMPTY_INDEX_POINTER = 0xFFFFFFFF;
+  static constexpr uint32_t BASE_UNIT_SIZE = 32;
+  static constexpr uint32_t REGULAR_NODE_ADDRESS_MASK = 0x80000000;
+  static constexpr uint32_t REGULAR_NODE_DATA_MASK = 0x7FFFFFFF;
+  static constexpr uint32_t REGULAR_NODE_KEY_MASK = 0x7FFFFFFF;
+
   using SlabTypeT = key_only_slab<KeyT>;
+
   static std::string getTypeName() { return std::string("ConcurrentSet"); }
 };
 
