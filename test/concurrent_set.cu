@@ -44,7 +44,7 @@ int main(int argc, char** argv) {
   uint32_t num_keys = 1<<20;
 
   float expected_chain = 0.6f;
-  uint32_t num_elements_per_unit = 15;
+  uint32_t num_elements_per_unit = 31;
   uint32_t expected_elements_per_bucket =
       expected_chain * num_elements_per_unit;
   uint32_t num_buckets = (num_keys + expected_elements_per_bucket - 1) /
@@ -55,17 +55,12 @@ int main(int argc, char** argv) {
   uint32_t num_queries = num_keys;
 
   using KeyT = uint32_t;
-  using ValueT = uint32_t;
   auto num_elements = 2 * num_keys;
 
   std::vector<KeyT> h_key(num_elements);
-  std::vector<ValueT> h_value(num_elements);
   std::vector<KeyT> h_query(num_queries);
-  std::vector<ValueT> h_correct_result(num_queries);
-  std::vector<ValueT> h_result(num_queries);
-
-  // std::iota(h_key.begin(), h_key.end(), 0);
-  const auto f = [](const KeyT& key) { return key * 10; };
+  std::vector<KeyT> h_correct_result(num_queries);
+  std::vector<KeyT> h_result(num_queries);
 
   std::random_device rd;
   const int64_t seed = 1;
@@ -76,7 +71,6 @@ int main(int argc, char** argv) {
 
   for (int32_t i = 0; i < index.size(); i++) {
     h_key[i] = index[i];
-    h_value[i] = f(h_key[i]);
   }
 
   //=== generating random queries with a fixed ratio existing in keys
@@ -84,7 +78,7 @@ int main(int argc, char** argv) {
 
   for (int i = 0; i < num_existing; i++) {
     h_query[i] = h_key[num_keys - 1 - i];
-    h_correct_result[i] = f(h_query[i]);
+    h_correct_result[i] = h_query[i];
   }
 
   for (int i = 0; i < (num_queries - num_existing); i++) {
@@ -99,13 +93,13 @@ int main(int argc, char** argv) {
     std::swap(h_query[i], h_query[q_index[i]]);
     std::swap(h_correct_result[i], h_correct_result[q_index[i]]);
   }
-  // gpu_hash_table<KeyT, ValueT, DEVICE_ID> hash_table(num_keys, num_buckets, seed);
-  // GpuSlabHash<KeyT, ValueT, DEVICE_ID, SlabHashTypeT::ConcurrentSet> mySet(1, nullptr);
+  gpu_hash_table<KeyT, KeyT, DEVICE_ID, SlabHashTypeT::ConcurrentSet>
+      hash_table(num_keys, num_buckets, seed, false);
 
-  // float build_time =
-  //     hash_table.hash_build(h_key.data(), h_value.data(), num_keys);
-  // float search_time =
-  //     hash_table.hash_search(h_query.data(), h_result.data(), num_queries);
+  float build_time =
+      hash_table.hash_build(h_key.data(), nullptr, num_keys);
+  float search_time =
+      hash_table.hash_search(h_query.data(), h_result.data(), num_queries);
   // float search_time_bulk =
   //     hash_table.hash_search_bulk(h_query.data(), h_result.data(), num_queries);
   // // // hash_table.print_bucket(0);
@@ -126,16 +120,16 @@ int main(int argc, char** argv) {
   // printf("The load factor is %.2f, number of buckets %d\n", load_factor,
   //        num_buckets);
 
-  // // ==== validation:
-  // for (int i = 0; i < num_queries; i++) {
-  //   if (h_correct_result[i] != h_result[i]) {
-  //     printf("### wrong result at index %d: [%d] -> %d, but should be %d\n", i,
-  //            h_query[i], h_result[i], h_correct_result[i]);
-  //     break;
-  //   }
-  //   if (i == (num_queries - 1))
-  //     printf("Validation done successfully\n");
-  // }
+  // ==== validation:
+  for (int i = 0; i < num_queries; i++) {
+    if (h_correct_result[i] != h_result[i]) {
+      printf("### wrong result at index %d: [%d] -> %d, but should be %d\n", i,
+             h_query[i], h_result[i], h_correct_result[i]);
+      break;
+    }
+    if (i == (num_queries - 1))
+      printf("Validation done successfully\n");
+  }
 
   // delete[] h_key;
   // delete[] h_value;
