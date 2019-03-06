@@ -163,7 +163,8 @@ class GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashTypeT::ConcurrentSet> {
  public:
   GpuSlabHash(const uint32_t num_buckets,
               DynamicAllocatorT* dynamic_allocator,
-              const time_t seed = 0)
+              const time_t seed = 0,
+              const bool identity_hash = false)
       : num_buckets_(num_buckets),
         d_table_(nullptr),
         slab_unit_size_(0),
@@ -188,11 +189,15 @@ class GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashTypeT::ConcurrentSet> {
         cudaMemset(d_table_, 0xFF, slab_unit_size_ * num_buckets_));
 
     // creating a random number generator:
-    std::mt19937 rng(seed ? seed : time(0));
-    hf_.x = rng() % PRIME_DIVISOR_;
-    if (hf_.x < 1)
-      hf_.x = 1;
-    hf_.y = rng() % PRIME_DIVISOR_;
+    if (!identity_hash) {
+      std::mt19937 rng(seed ? seed : time(0));
+      hf_.x = rng() % PRIME_DIVISOR_;
+      if (hf_.x < 1)
+        hf_.x = 1;
+      hf_.y = rng() % PRIME_DIVISOR_;
+    } else {
+      hf_ = {0u, 0u};
+    }
 
     // initializing the gpu_context_:
     gpu_context_.initParameters(num_buckets_, hf_.x, hf_.y, d_table_,
@@ -207,6 +212,10 @@ class GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashTypeT::ConcurrentSet> {
   // returns some debug information about the slab hash
   std::string to_string();
   double computeLoadFactor(int flag) {}
+  GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentSet>&
+  getSlabHashContext() {
+    return gpu_context_;
+  }
 
   void buildBulk(KeyT* d_key, ValueT* d_value, uint32_t num_keys);
   void searchIndividual(KeyT* d_query, ValueT* d_result, uint32_t num_queries);
