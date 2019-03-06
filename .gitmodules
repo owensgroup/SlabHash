@@ -1,3 +1,3 @@
 [submodule "SlabAlloc"]
 	path = SlabAlloc
-	url = https://github.com/sashkiani/SlabAlloc
+	url = https://github.com/owensgroup/SlabAlloc
