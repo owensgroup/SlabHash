@@ -30,6 +30,7 @@
 // class declaration:
 #include "concurrent_map/cmap_class.cuh"
 #include "concurrent_set/cset_class.cuh"
+#include "slab_iterator.cuh"
 
 // warp implementations of member functions:
 #include "concurrent_map/warp/delete.cuh"
