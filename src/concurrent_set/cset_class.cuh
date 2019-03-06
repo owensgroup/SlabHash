@@ -63,6 +63,10 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentSet> {
     return d_table_;
   }
 
+  __device__ __host__ __forceinline__ uint32_t getNumBuckets() {
+    return num_buckets_;
+  }
+
   __device__ __host__ __forceinline__ uint32_t
   computeBucket(const KeyT& key) const {
     return (((hash_x_ ^ key) + hash_y_) % PRIME_DIVISOR_) % num_buckets_;

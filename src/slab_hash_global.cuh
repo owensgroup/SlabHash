@@ -105,6 +105,7 @@ class ConcurrentSetT {
   static constexpr uint32_t REGULAR_NODE_ADDRESS_MASK = 0x80000000;
   static constexpr uint32_t REGULAR_NODE_DATA_MASK = 0x7FFFFFFF;
   static constexpr uint32_t REGULAR_NODE_KEY_MASK = 0x7FFFFFFF;
+  static constexpr uint32_t NEXT_PTR_LANE = 31u;
 
   using SlabTypeT = key_only_slab<KeyT>;
 
