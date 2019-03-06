@@ -6,3 +6,6 @@ cuda_add_executable(concurrent_map concurrent_map.cu
 
 cuda_add_executable(concurrent_set concurrent_set.cu
                 OPTIONS ${GENCODE} ${CUDA_VERBOSE_PTXAS})
+
+cuda_add_executable(iterator_test iterator_test.cu
+		OPTIONS ${GENCODE} ${CUDA_VERBOSE_PTXAS})

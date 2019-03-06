@@ -31,20 +31,17 @@ class SlabIterator {
   uint32_t cur_size_;    // keep track of current level's size (in units of
                          // sizeof(KeyT))
   uint32_t cur_bucket_;  // keeping track of the current bucket
-  bool is_header_;       // keep track of whether we are currently at the slab's
-                         // header or not
   SlabAddressT cur_slab_address_;
   // initialize the iterator with the first bucket's pointer address of the slab
   // hash
-  SlabIterator(
+  __host__ __device__ SlabIterator(
       GpuSlabHashContext<KeyT, KeyT, SlabHashTypeT::ConcurrentSet>& slab_hash)
       : slab_hash_(slab_hash),
         cur_ptr_(reinterpret_cast<KeyT*>(slab_hash_.getDeviceTablePointer())),
         cur_size_(slab_hash_.getNumBuckets() * SlabHashT::BASE_UNIT_SIZE),
         cur_bucket_(0),
-        is_header_(true),
         cur_slab_address_(
-            slab_hash.getPointerFromBucket(0, SlabHashT::NEXT_PTR_LANE)) {}
+            *slab_hash.getPointerFromBucket(0, SlabHashT::NEXT_PTR_LANE)) {}
 
   __device__ __forceinline__ KeyT* getPointer() const { return cur_ptr_; }
   __device__ __forceinline__ uint32_t getSize() const { return cur_size_; }
@@ -62,12 +59,12 @@ class SlabIterator {
       if (cur_bucket_ == slab_hash_.getNumBuckets()) {
         return false;
       }
-      cur_slab_address_ = slab_hash_.getPointerFromBucket(
-          cur_bucket_, SlabHashT::EMPTY_INDEX_POINTER);
+      cur_slab_address_ = *slab_hash_.getPointerFromBucket(
+          cur_bucket_, SlabHashT::NEXT_PTR_LANE);
     }
 
     cur_ptr_ = slab_hash_.getPointerFromSlab(cur_slab_address_, 0);
-    cur_slab_address_ = slab_hash_.getPointerFromSlab(cur_slab_address_,
+    cur_slab_address_ = *slab_hash_.getPointerFromSlab(cur_slab_address_,
                                                       SlabHashT::NEXT_PTR_LANE);
     cur_size_ = SlabHashT::BASE_UNIT_SIZE;
     return true;
