@@ -50,7 +50,8 @@ class gpu_hash_table {
                  uint32_t num_buckets,
                  const int64_t seed,
                  const bool req_values = true,
-                 const bool identity_hash = false)
+                 const bool identity_hash = false,
+                 const bool verbose = false)
       : max_keys_(max_keys),
         num_buckets_(num_buckets),
         seed_(seed),
@@ -80,7 +81,9 @@ class gpu_hash_table {
     // slab hash:
     slab_hash_ = new GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashT>(
         num_buckets_, dynamic_allocator_, seed_, identity_hash_);
-    std::cout << slab_hash_->to_string() << std::endl;
+    if (verbose) {
+      std::cout << slab_hash_->to_string() << std::endl;
+    }
   }
 
   ~gpu_hash_table() {
