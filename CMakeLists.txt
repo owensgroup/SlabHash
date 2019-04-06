@@ -73,5 +73,6 @@ endif(SLABHASH_GENCODE_SM71)
 
 include_directories(SlabAlloc/src)
 include_directories(src src/concurrent)
+include_directories(ThirdParty/rapidjson/include)
 add_subdirectory(test)
 add_subdirectory(bench)

@@ -18,7 +18,11 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <iostream> 
-#include <algorithm> 
+#include <algorithm>
+#include <ctime>
+#include <iomanip> 
+#include <string>
+#include <sstream> 
 
 #define DEVICE_ID 0 // todo: change this into a paramater 
 
@@ -55,7 +59,7 @@ int main(int argc, char** argv) {
 
   uint32_t init_batches = 1;
 
-  std::string filename("results/");
+  std::string filename("");
   if (cmdOptionExists(argv, argc + argv, "-mode"))
     mode = atoi(getCmdOption(argv, argv + argc, "-mode"));
   if (cmdOptionExists(argv, argc + argv, "-buckets"))
@@ -83,11 +87,18 @@ int main(int argc, char** argv) {
   if (cmdOptionExists(argv, argc + argv, "-search"))
     c_search = float(atoi(getCmdOption(argv, argv + argc, "-search"))) / 100.0f;
 
+  // input argument for the file to be used for storing the results
   if (cmdOptionExists(argv, argc + argv, "-filename")) {
     filename.append(getCmdOption(argv, argv + argc, "-filename"));
-    filename.append(".txt");
+    std::cout << filename << std::endl;
   } else {
-    filename = "results/default.txt";
+    // setting the filename to be the current time:
+    filename += "bench/";
+    auto time = std::time(nullptr);
+    auto tm = *std::localtime(&time);
+    std::ostringstream temp;
+    temp << std::put_time(&tm, "%d-%m-%Y_%H-%M-%S");
+    filename += ("out_" + temp.str() + ".json");
   }
 
   //=========
@@ -101,5 +112,5 @@ int main(int argc, char** argv) {
   printf("Device: %s\n", devProp.name);
   
   // running the actual experiment 
-  load_factor_bulk_experiment<uint32_t, uint32_t>(num_keys, num_queries, 0, 10, 0.1f);
+  load_factor_bulk_experiment<uint32_t, uint32_t>(num_keys, num_queries, filename, 0, 10, 0.1f);
 }

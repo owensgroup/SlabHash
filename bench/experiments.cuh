@@ -15,8 +15,15 @@
  */
 
 #pragma once
-#include "gpu_hash_table.cuh"
+#include <fstream>
+#include <iostream>
 
+#include "gpu_hash_table.cuh"
+#include "rapidjson/document.h"
+#include "rapidjson/ostreamwrapper.h"
+#include "rapidjson/stringbuffer.h"
+#include "rapidjson/writer.h"
+using namespace rapidjson;
 // ======= Part 1: bulk experiments
 
 /*
@@ -26,9 +33,24 @@
 template <typename KeyT, typename ValueT>
 void load_factor_bulk_experiment(uint32_t num_keys,
                                  uint32_t num_queries,
+                                 std::string filename,
                                  uint32_t algmode = 0,
                                  int num_sample_lf = 10,
                                  float steps = 0.1f) {
+  Document doc;
+  // doc.Parse(json);
+  doc.SetObject();
+
+  // Value object(kObjectType);
+  // object.AddMember("Math", Value().SetInt(40), doc.GetAllocator());
+  // object.AddMember("Science", "70", doc.GetAllocator());
+  // object.AddMember("English", "50", doc.GetAllocator());
+  // object.AddMember("Social Science", "70", doc.GetAllocator());
+  // doc.AddMember("Marks", object, doc.GetAllocator());
+
+  // doc.Accept(writer);
+  // std::cout << s.GetString() << std::endl;
+
   printf(
       "hash,algmode,num_keys,num_queries,load_factor,chain,build_time,"
       "build_rate,query_ratio,search_time,search_rate\n");
@@ -56,6 +78,8 @@ void load_factor_bulk_experiment(uint32_t num_keys,
     expected_chain_list[i] = expected_chain_list[i - 1] + steps;
 
   std::vector<float> query_ratio_list{0.0f, 1.0f};
+
+  uint32_t experiment_id = 0;
 
   for (int i_expected_chain = 0; i_expected_chain < num_sample_lf;
        i_expected_chain++) {
@@ -104,6 +128,8 @@ void load_factor_bulk_experiment(uint32_t num_keys,
       // performing the queries:
       // float search_time_bulk =
       //     hash_table.hash_search_bulk(h_query, h_result, num_queries);
+      float search_time =
+          hash_table.hash_search(h_query, h_result, num_queries);      
       float search_time_bulk =
           hash_table.hash_search_bulk(h_query, h_result, num_queries);
 
@@ -111,16 +137,53 @@ void load_factor_bulk_experiment(uint32_t num_keys,
       // float cudpp_search_time =
       //     cudpp_hash.lookup_hash_table(h_query, num_queries);
 
-        printf("SlabHash,%d,%d,%d,%.2f,%.2f,%.3f,%.3f,%.2f,%.3f,%.3f\n",
-               algmode, num_keys, num_queries, load_factor, expected_chain,
-               build_time, double(num_keys) / build_time / 1000.0, query_ratio,
-               search_time_bulk,
-               double(num_queries) / search_time_bulk / 1000.0);
-        // fprintf(fptr, "CUDPP,%d,%d,%d,%.2f,%.2f,%.3f,%.3f,%.2f,%.3f,%.3f\n",
-        //         algmode, num_keys, num_queries, load_factor, expected_chain,
-        //         cudpp_build_time, double(num_keys) / cudpp_build_time /
-        //         1000.0, query_ratio, cudpp_search_time, double(num_queries) /
-        //         cudpp_search_time / 1000.0);
+      rapidjson::Value object(kObjectType);
+      object.AddMember("num_keys", rapidjson::Value().SetInt(num_keys),
+                       doc.GetAllocator());
+      object.AddMember("num_queries", rapidjson::Value().SetInt(num_queries),
+                       doc.GetAllocator());
+      object.AddMember("build_time_ms",
+                       rapidjson::Value().SetDouble(build_time),
+                       doc.GetAllocator());
+      object.AddMember(
+          "build_rate_mps",
+          rapidjson::Value().SetDouble(double(num_keys) / build_time / 1000.0),
+          doc.GetAllocator());
+      object.AddMember("search_time_bulk_ms",
+                       rapidjson::Value().SetDouble(search_time_bulk),
+                       doc.GetAllocator());
+      object.AddMember("search_rate_bulk_mps",
+                       rapidjson::Value().SetDouble(double(num_queries) /
+                                                    search_time_bulk / 1000.0),
+                       doc.GetAllocator());
+      object.AddMember("search_time_ms",
+                       rapidjson::Value().SetDouble(search_time),
+                       doc.GetAllocator());
+      object.AddMember("search_rate_mps",
+                       rapidjson::Value().SetDouble(double(num_queries) /
+                                                    search_time / 1000.0),
+                       doc.GetAllocator());      
+      object.AddMember("query_ratio", rapidjson::Value().SetDouble(query_ratio),
+                       doc.GetAllocator());
+      object.AddMember("load_factor", rapidjson::Value().SetDouble(load_factor),
+                       doc.GetAllocator());
+      object.AddMember("exp_chain_length",
+                       rapidjson::Value().SetDouble(expected_chain),
+                       doc.GetAllocator());
+      std::string key_name(std::to_string(experiment_id++));
+      doc.AddMember(rapidjson::Value().SetString(
+                        key_name.c_str(), key_name.size(), doc.GetAllocator()),
+                    object, doc.GetAllocator());
+
+      printf("SlabHash,%d,%d,%d,%.2f,%.2f,%.3f,%.3f,%.2f,%.3f,%.3f\n", algmode,
+             num_keys, num_queries, load_factor, expected_chain, build_time,
+             double(num_keys) / build_time / 1000.0, query_ratio,
+             search_time_bulk, double(num_queries) / search_time_bulk / 1000.0);
+      // fprintf(fptr, "CUDPP,%d,%d,%d,%.2f,%.2f,%.3f,%.3f,%.2f,%.3f,%.3f\n",
+      //         algmode, num_keys, num_queries, load_factor, expected_chain,
+      //         cudpp_build_time, double(num_keys) / cudpp_build_time /
+      //         1000.0, query_ratio, cudpp_search_time, double(num_queries) /
+      //         cudpp_search_time / 1000.0);
     }
     // printf(" ==> Build: %.2f M elements/s, CUDPP: %.2f M elements/s\n",
     //        double(num_keys) / build_time / 1000.0,
@@ -128,6 +191,18 @@ void load_factor_bulk_experiment(uint32_t num_keys,
     printf(" ==> Build: %.2f M elements/s\n",
            double(num_keys) / build_time / 1000.0);
   }
+
+  //  rapidjson::StringBuffer s;
+  //  rapidjson::Writer<rapidjson::StringBuffer> writer(s);
+  // doc.Accept(writer);
+  // std::cout << s.GetString() << std::endl;
+  std::cout << " ============= " << filename << std::endl;
+  // const std::string base_name("bench/");
+  std::ofstream ofs(filename);
+  rapidjson::OStreamWrapper osw(ofs);
+  rapidjson::Writer<rapidjson::OStreamWrapper> writer(osw);
+
+  doc.Accept(writer);
 
   if (h_key)
     delete[] h_key;
