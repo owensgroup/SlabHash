@@ -23,7 +23,8 @@
 #include "rapidjson/ostreamwrapper.h"
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
-using namespace rapidjson;
+#include "batched_data_gen.h"
+
 // ======= Part 1: bulk experiments
 
 /*
@@ -37,19 +38,8 @@ void load_factor_bulk_experiment(uint32_t num_keys,
                                  uint32_t algmode = 0,
                                  int num_sample_lf = 10,
                                  float steps = 0.1f) {
-  Document doc;
-  // doc.Parse(json);
+  rapidjson::Document doc;
   doc.SetObject();
-
-  // Value object(kObjectType);
-  // object.AddMember("Math", Value().SetInt(40), doc.GetAllocator());
-  // object.AddMember("Science", "70", doc.GetAllocator());
-  // object.AddMember("English", "50", doc.GetAllocator());
-  // object.AddMember("Social Science", "70", doc.GetAllocator());
-  // doc.AddMember("Marks", object, doc.GetAllocator());
-
-  // doc.Accept(writer);
-  // std::cout << s.GetString() << std::endl;
 
   printf(
       "hash,algmode,num_keys,num_queries,load_factor,chain,build_time,"
@@ -137,7 +127,7 @@ void load_factor_bulk_experiment(uint32_t num_keys,
       // float cudpp_search_time =
       //     cudpp_hash.lookup_hash_table(h_query, num_queries);
 
-      rapidjson::Value object(kObjectType);
+      rapidjson::Value object(rapidjson::kObjectType);
       object.AddMember("num_keys", rapidjson::Value().SetInt(num_keys),
                        doc.GetAllocator());
       object.AddMember("num_queries", rapidjson::Value().SetInt(num_queries),
@@ -192,12 +182,7 @@ void load_factor_bulk_experiment(uint32_t num_keys,
            double(num_keys) / build_time / 1000.0);
   }
 
-  //  rapidjson::StringBuffer s;
-  //  rapidjson::Writer<rapidjson::StringBuffer> writer(s);
-  // doc.Accept(writer);
-  // std::cout << s.GetString() << std::endl;
-  std::cout << " ============= " << filename << std::endl;
-  // const std::string base_name("bench/");
+  // writing back the results as a json file
   std::ofstream ofs(filename);
   rapidjson::OStreamWrapper osw(ofs);
   rapidjson::Writer<rapidjson::OStreamWrapper> writer(osw);

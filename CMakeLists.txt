@@ -6,6 +6,7 @@ find_package(CUDA 8.0 REQUIRED)
 option(CMAKE_VERBOSE_MAKEFILE ON)
 
 set(CUDA_NVCC_FLAGS -std=c++11)
+set (CMAKE_CXX_STANDARD 11)
 
 if (CUDA_VERBOSE_PTXAS)
   set(VERBOSE_PTXAS --ptxas-options=-v)
