@@ -65,16 +65,12 @@ def main(argv):
 
 		tabular_data_q0 = []
 		tabular_data_q1 = []
-		# load_factor = []
-		# build_rate = []
 
 		for trial in trials:
 			if( abs(trial["query_ratio"]) < 0.000001):
 				tabular_data_q0.append((trial["load_factor"], trial["build_rate_mps"], trial["search_rate_mps"], trial["search_rate_bulk_mps"]))
-			else:
+			elif abs(trial["query_ratio"] - 1.0) < 0.000001:
 				tabular_data_q1.append((trial["load_factor"], trial["build_rate_mps"], trial["search_rate_mps"], trial["search_rate_bulk_mps"]))
-			# load_factor.append(trial["load_factor"])
-			# build_rate.append(trial["build_rate_mps"])
 
 		tabular_data_q0.sort()
 		print("Experiments when none of the queries exist:")
@@ -87,10 +83,6 @@ def main(argv):
 		print("load factor\tbuild rate(M/s)\t\tsearch rate(M/s)\tsearch rate bulk(M/s)")
 		for pair in tabular_data_q1:
 			print("%.2f\t\t%.3f\t\t%.3f\t\t%.3f" % (pair[0], pair[1], pair[2], pair[3]))		
-
-		# print(rate_vector)
-		# plt.plot(load_factor, build_rate)
-		# plt.show()
 
 if __name__ == "__main__":
 	main(sys.argv[1:])

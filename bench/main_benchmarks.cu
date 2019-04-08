@@ -121,6 +121,7 @@ int main(int argc, char** argv) {
   // running the actual experiment
   switch (mode) {
     case 0:  // singleton experiment
+    singleton_experiment(16, 8);
       break;
     case 1:  // bulk build, num elements fixed, load factor changing
       load_factor_bulk_experiment<KeyT, ValueT>(

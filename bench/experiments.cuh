@@ -38,7 +38,8 @@ void load_factor_bulk_experiment(uint32_t num_keys,
                                  uint32_t device_idx,
                                  bool run_cudpp = false,
                                  int num_sample_lf = 10,
-                                 float steps = 0.1f) {
+                                 float steps = 0.1f,
+                                 bool verbose = false) {
   rapidjson::Document doc;
   doc.SetObject();
 
@@ -61,23 +62,18 @@ void load_factor_bulk_experiment(uint32_t num_keys,
   uint32_t* h_value = new uint32_t[num_keys + num_queries];
   uint32_t* h_query = new uint32_t[num_queries];
   uint32_t* h_result = new uint32_t[num_queries];
-  // uint32_t*	h_correct_result	= new uint32_t[num_queries];
 
   const uint32_t num_elements_per_unit = 15;
-  // my warp allocator initial size:
-
   // === generating random key-values
-  // RandomSequenceOfUnique myRNG(rand(), rand());
-  // todo : remember to change this part
-  for (int i = 0; i < (num_keys + num_queries); i++) {
-    h_key[i] = i;
-    h_value[i] = h_key[i];
-  }
+  BatchedDataGen key_gen(num_keys + num_queries, num_keys + num_queries);
+  key_gen.generate_random_keys(std::time(nullptr), /*num_msb = */ 0, true);
+  auto f = [](uint32_t key) { return 10 * key; };
 
   std::vector<float> expected_chain_list(num_sample_lf);
   expected_chain_list[0] = 0.1f;
-  for (int i = 1; i < num_sample_lf; i++)
+  for (int i = 1; i < num_sample_lf; i++) {
     expected_chain_list[i] = expected_chain_list[i - 1] + steps;
+  }
 
   // query ratios to be tested against (fraction of queries that actually exist
   // in the data structure):
@@ -93,15 +89,6 @@ void load_factor_bulk_experiment(uint32_t num_keys,
     uint32_t num_buckets = (num_keys + expected_elements_per_bucket - 1) /
                            expected_elements_per_bucket;
 
-    // building the hash table:
-    gpu_hash_table<KeyT, ValueT, DEVICE_ID, SlabHashTypeT::ConcurrentMap>
-        hash_table(num_keys, num_buckets, time(nullptr));
-
-    float build_time = hash_table.hash_build(h_key, h_value, num_keys);
-
-    // measuring the exact load factor in slab hash
-    double load_factor = hash_table.measureLoadFactor();
-
     // ==== Running CUDPP hash table with the same load factor:
     if (run_cudpp) {
       // cudpp_hash_table cudpp_hash(h_key, h_value, num_keys, num_queries,
@@ -112,22 +99,35 @@ void load_factor_bulk_experiment(uint32_t num_keys,
     for (auto query_ratio : query_ratio_list) {
       // === generating random queries with a fixed ratio existing in keys
       uint32_t num_existing = static_cast<uint32_t>(query_ratio * num_queries);
+      auto buffer_ptr =
+          key_gen.getSingleBatchPointer(num_keys, num_queries, num_existing);
 
-      for (int i = 0; i < num_existing; i++) {
-        h_query[i] = h_key[num_keys - 1 - i];
-        // h_correct_result[i] = h_query[i];
+      for (int i = 0; i < num_keys; i++) {
+        h_key[i] = buffer_ptr[i];
+        h_value[i] = f(h_key[i]);
       }
 
-      for (int i = 0; i < (num_queries - num_existing); i++) {
-        h_query[num_existing + i] = h_key[num_keys + i];
-        // h_correct_result[num_existing + i] = SEARCH_NOT_FOUND;
+      for (int i = 0; i < num_queries; i++) {
+        h_query[i] = buffer_ptr[num_keys + i];
       }
-      // permuting the queries:
-      // randomPermute(h_query, num_queries); // ==== removed
 
+      // building the hash table:
+      gpu_hash_table<KeyT, ValueT, DEVICE_ID, SlabHashTypeT::ConcurrentMap>
+          hash_table(num_keys, num_buckets, time(nullptr));
+
+      float build_time = hash_table.hash_build(h_key, h_value, num_keys);
+
+      // measuring the exact load factor in slab hash
+      double load_factor = hash_table.measureLoadFactor();
+
+      if (verbose) {
+        printf(
+            "%d: num_element = %u, load_factor = %.2f, query_ratio = %.2f, "
+            "build_rate: %.2f M elements/s\n",
+            experiment_id, num_keys, load_factor, query_ratio,
+            double(num_keys) / build_time / 1000.0);
+      }
       // performing the queries:
-      // float search_time_bulk =
-      //     hash_table.hash_search_bulk(h_query, h_result, num_queries);
       float search_time =
           hash_table.hash_search(h_query, h_result, num_queries);
       float search_time_bulk =
@@ -140,7 +140,8 @@ void load_factor_bulk_experiment(uint32_t num_keys,
       }
 
       rapidjson::Value object(rapidjson::kObjectType);
-      object.AddMember("id", rapidjson::Value().SetInt(experiment_id++), doc.GetAllocator());
+      object.AddMember("id", rapidjson::Value().SetInt(experiment_id++),
+                       doc.GetAllocator());
       object.AddMember("num_keys", rapidjson::Value().SetInt(num_keys),
                        doc.GetAllocator());
       object.AddMember("num_queries", rapidjson::Value().SetInt(num_queries),
@@ -173,29 +174,8 @@ void load_factor_bulk_experiment(uint32_t num_keys,
       object.AddMember("exp_chain_length",
                        rapidjson::Value().SetDouble(expected_chain),
                        doc.GetAllocator());
-      // std::string key_name(std::to_string(experiment_id++));
       object_array.PushBack(object, doc.GetAllocator());
-      // doc.AddMember(rapidjson::Value().SetString(
-      //                   key_name.c_str(), key_name.size(), doc.GetAllocator()),
-      //               object, doc.GetAllocator());
-
-      // printf("SlabHash,%d,%d,%d,%.2f,%.2f,%.3f,%.3f,%.2f,%.3f,%.3f\n",
-      // algmode,
-      //        num_keys, num_queries, load_factor, expected_chain, build_time,
-      //        double(num_keys) / build_time / 1000.0, query_ratio,
-      //        search_time_bulk, double(num_queries) / search_time_bulk /
-      //        1000.0);
-      // fprintf(fptr, "CUDPP,%d,%d,%d,%.2f,%.2f,%.3f,%.3f,%.2f,%.3f,%.3f\n",
-      //         algmode, num_keys, num_queries, load_factor, expected_chain,
-      //         cudpp_build_time, double(num_keys) / cudpp_build_time /
-      //         1000.0, query_ratio, cudpp_search_time, double(num_queries) /
-      //         cudpp_search_time / 1000.0);
     }
-    // printf(" ==> Build: %.2f M elements/s, CUDPP: %.2f M elements/s\n",
-    //        double(num_keys) / build_time / 1000.0,
-    //        double(num_keys) / cudpp_build_time / 1000.0);
-    printf(" ==> Build: %.2f M elements/s\n",
-           double(num_keys) / build_time / 1000.0);
   }
 
   // adding the array of objects into the document:
@@ -216,4 +196,19 @@ void load_factor_bulk_experiment(uint32_t num_keys,
     delete[] h_query;
   if (h_result)
     delete[] h_result;
+}
+
+void singleton_experiment(uint32_t num_keys, uint32_t num_queries) {
+  BatchedDataGen key_gen(num_keys + num_queries, num_keys + num_queries);
+  key_gen.generate_random_keys(std::time(nullptr), /*num_msb = */ 0, true);
+  auto ptr = key_gen.getSingleBatchPointer(num_keys, num_queries,
+                                           /*num_existing = */ 4);
+
+  for (int i = 0; i < num_keys; i++) {
+    printf("%u(%d), ", ptr[i], ptr[i] & 0x1F);
+  }
+  printf("\n == queries\n");
+  for (int i = 0; i < num_queries; i++) {
+    printf("%u(%d), ", ptr[num_keys + i], ptr[num_keys + i] & 0x1F);
+  }
 }

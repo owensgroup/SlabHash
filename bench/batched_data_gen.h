@@ -21,8 +21,10 @@
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <numeric>
 #include <random>
+#include <unordered_set>
 
 class BatchedDataGen {
  private:
@@ -47,11 +49,14 @@ class BatchedDataGen {
   void shuffle(uint32_t* input, uint32_t size);
   void shuffle_pairs(uint32_t* input, uint32_t* values, uint32_t size);
   void generate_random_keys();
-  void generate_random_keys(int seed, int num_msb);
-  // void generate_random_keys(RandomSequenceOfUnique& myRNG, int num_msb);
+  void generate_random_keys(int seed, int num_msb, bool ensure_uniqueness);
+  uint32_t* getSingleBatchPointer(uint32_t num_keys,
+                                  uint32_t num_queries,
+                                  uint32_t num_existing);
   uint32_t get_edge_index();
   void set_edge_index(uint32_t new_edge_index);
   uint32_t* next_batch(float a_insert, float b_delete, float c_search_exist);
+  uint32_t getBatchCounter() { return batch_counter_; }
   void print_batch();
   void print_reference();
   void compute_batch_contents(float a_insert,

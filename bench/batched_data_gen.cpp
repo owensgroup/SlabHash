@@ -44,9 +44,10 @@ BatchedDataGen::~BatchedDataGen() {
 }
 
 void BatchedDataGen::shuffle(uint32_t* input, uint32_t size) {
+  std::mt19937 rng(std::time(nullptr));
   for (int i = 0; i < size; i++) {
-    unsigned int rand1 = rand();
-    unsigned int rand2 = (rand() << 15) + rand1;
+    unsigned int rand1 = rng();
+    unsigned int rand2 = (rng() << 15) + rand1;
     unsigned int swap = i + (rand2 % (size - i));
 
     unsigned int temp = input[i];
@@ -56,11 +57,12 @@ void BatchedDataGen::shuffle(uint32_t* input, uint32_t size) {
 }
 
 void BatchedDataGen::shuffle_pairs(uint32_t* input,
-                                  uint32_t* values,
-                                  uint32_t size) {
+                                   uint32_t* values,
+                                   uint32_t size) {
+  std::mt19937 rng(std::time(nullptr));
   for (int i = 0; i < size; i++) {
-    unsigned int rand1 = rand();
-    unsigned int rand2 = (rand() << 15) + rand1;
+    unsigned int rand1 = rng();
+    unsigned int rand2 = (rng() << 15) + rand1;
     unsigned int swap = i + (rand2 % (size - i));
 
     unsigned int temp = input[i];
@@ -75,17 +77,47 @@ void BatchedDataGen::shuffle_pairs(uint32_t* input,
 
 void BatchedDataGen::generate_random_keys() {
   std::iota(h_key_ref_, h_key_ref_ + num_ref_, 0);
-  // shuffle(h_key_ref_, num_ref_);
   std::random_shuffle(h_key_ref_, h_key_ref_ + num_ref_);
 }
 
-void BatchedDataGen::generate_random_keys(int seed, int num_msb) {
+void BatchedDataGen::generate_random_keys(int seed,
+                                          int num_msb = 0,
+                                          bool ensure_uniqueness = false) {
   std::mt19937 rng(seed);
+  std::unordered_set<uint32_t> key_dict;
   for (int i = 0; i < num_ref_; i++) {
-    h_key_ref_[i] =
-        (rng() &
-         (0xFFFFFFFF >> num_msb));  // except for the most significant two bits
+    if (!ensure_uniqueness) {
+      h_key_ref_[i] =
+          (rng() & (0xFFFFFFFF >>
+                    num_msb));  // except for the most significant two bits
+    } else {
+      uint32_t key = rng() & (0xFFFFFFFF >> num_msb);
+      while (key_dict.find(key) != key_dict.end()) {
+        key = rng();
+      }
+      key_dict.insert(key);
+      h_key_ref_[i] = key;
+    }
   }
+  // std::cout<< " == 1) all random keys generated successfully" << std::endl;
+}
+
+uint32_t* BatchedDataGen::getSingleBatchPointer(
+    uint32_t num_keys,
+    uint32_t num_queries,
+    uint32_t num_existing) {
+  assert(num_keys + num_queries == batch_size_);
+  assert(batch_size_ <= num_ref_);
+  assert(num_existing <= num_queries);
+  std::copy(h_key_ref_, h_key_ref_ + num_keys, h_batch_buffer_);
+  auto begin_index = (num_keys > num_existing) ? (num_keys - num_existing) : 0;
+  std::copy(h_key_ref_ + begin_index, h_key_ref_ + begin_index + num_queries,
+            h_batch_buffer_ + num_keys);
+  std::mt19937 rng(std::time(nullptr));
+  std::shuffle(h_batch_buffer_, h_batch_buffer_ + num_keys, rng);
+  std::shuffle(h_batch_buffer_ + num_keys, h_batch_buffer_ + num_keys + num_queries, rng);
+  // std::cout << " == 2) random batch generated" << std::endl;
+  return h_batch_buffer_;
 }
 
 uint32_t BatchedDataGen::get_edge_index() {
@@ -98,8 +130,8 @@ void BatchedDataGen::set_edge_index(uint32_t new_edge_index) {
 }
 
 void BatchedDataGen::compute_batch_contents(float a_insert,
-                                           float b_delete,
-                                           float c_search_exist) {
+                                            float b_delete,
+                                            float c_search_exist) {
   assert(a_insert + b_delete + c_search_exist <= 1.0f);
   num_insert_ = static_cast<uint32_t>(a_insert * batch_size_);
   num_delete_ = static_cast<uint32_t>(b_delete * batch_size_);
@@ -109,8 +141,8 @@ void BatchedDataGen::compute_batch_contents(float a_insert,
 }
 
 uint32_t* BatchedDataGen::next_batch(float a_insert,
-                                    float b_delete,
-                                    float c_search_exist) {
+                                     float b_delete,
+                                     float c_search_exist) {
   compute_batch_contents(a_insert, b_delete, c_search_exist);
 
   std::random_shuffle(h_index_ref_, h_index_ref_ + edge_index_);
