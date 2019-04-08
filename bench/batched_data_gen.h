@@ -24,7 +24,7 @@
 #include <numeric>
 #include <random>
 
-class batched_bench {
+class BatchedDataGen {
  private:
   uint32_t* h_key_ref_;
   uint32_t* h_index_ref_;
@@ -42,8 +42,8 @@ class batched_bench {
   uint32_t batch_size_;
   uint32_t* h_batch_buffer_;
 
-  batched_bench(uint32_t num_ref_, uint32_t batch_size);
-  ~batched_bench();
+  BatchedDataGen(uint32_t num_ref_, uint32_t batch_size);
+  ~BatchedDataGen();
   void shuffle(uint32_t* input, uint32_t size);
   void shuffle_pairs(uint32_t* input, uint32_t* values, uint32_t size);
   void generate_random_keys();

@@ -16,7 +16,7 @@
 
 #include "batched_data_gen.h"
 
-batched_bench::batched_bench(uint32_t num_ref, uint32_t batch_size)
+BatchedDataGen::BatchedDataGen(uint32_t num_ref, uint32_t batch_size)
     : num_insert_(0),
       num_delete_(0),
       num_search_exist_(0),
@@ -32,7 +32,7 @@ batched_bench::batched_bench(uint32_t num_ref, uint32_t batch_size)
   temp_buffer_ = new uint32_t[batch_size_];
 }
 
-batched_bench::~batched_bench() {
+BatchedDataGen::~BatchedDataGen() {
   if (h_key_ref_)
     delete[] h_key_ref_;
   if (h_index_ref_)
@@ -43,7 +43,7 @@ batched_bench::~batched_bench() {
     delete[] temp_buffer_;
 }
 
-void batched_bench::shuffle(uint32_t* input, uint32_t size) {
+void BatchedDataGen::shuffle(uint32_t* input, uint32_t size) {
   for (int i = 0; i < size; i++) {
     unsigned int rand1 = rand();
     unsigned int rand2 = (rand() << 15) + rand1;
@@ -55,7 +55,7 @@ void batched_bench::shuffle(uint32_t* input, uint32_t size) {
   }
 }
 
-void batched_bench::shuffle_pairs(uint32_t* input,
+void BatchedDataGen::shuffle_pairs(uint32_t* input,
                                   uint32_t* values,
                                   uint32_t size) {
   for (int i = 0; i < size; i++) {
@@ -73,13 +73,13 @@ void batched_bench::shuffle_pairs(uint32_t* input,
   }
 }
 
-void batched_bench::generate_random_keys() {
+void BatchedDataGen::generate_random_keys() {
   std::iota(h_key_ref_, h_key_ref_ + num_ref_, 0);
   // shuffle(h_key_ref_, num_ref_);
   std::random_shuffle(h_key_ref_, h_key_ref_ + num_ref_);
 }
 
-void batched_bench::generate_random_keys(int seed, int num_msb) {
+void BatchedDataGen::generate_random_keys(int seed, int num_msb) {
   std::mt19937 rng(seed);
   for (int i = 0; i < num_ref_; i++) {
     h_key_ref_[i] =
@@ -88,16 +88,16 @@ void batched_bench::generate_random_keys(int seed, int num_msb) {
   }
 }
 
-uint32_t batched_bench::get_edge_index() {
+uint32_t BatchedDataGen::get_edge_index() {
   return edge_index_;
 }
 
-void batched_bench::set_edge_index(uint32_t new_edge_index) {
+void BatchedDataGen::set_edge_index(uint32_t new_edge_index) {
   if (new_edge_index < num_ref_)
     edge_index_ = new_edge_index;
 }
 
-void batched_bench::compute_batch_contents(float a_insert,
+void BatchedDataGen::compute_batch_contents(float a_insert,
                                            float b_delete,
                                            float c_search_exist) {
   assert(a_insert + b_delete + c_search_exist <= 1.0f);
@@ -108,7 +108,7 @@ void batched_bench::compute_batch_contents(float a_insert,
       batch_size_ - (num_insert_ + num_delete_ + num_search_exist_);
 }
 
-uint32_t* batched_bench::next_batch(float a_insert,
+uint32_t* BatchedDataGen::next_batch(float a_insert,
                                     float b_delete,
                                     float c_search_exist) {
   compute_batch_contents(a_insert, b_delete, c_search_exist);
@@ -166,7 +166,7 @@ uint32_t* batched_bench::next_batch(float a_insert,
   return h_batch_buffer_;
 }
 
-void batched_bench::print_batch() {
+void BatchedDataGen::print_batch() {
   printf("Batch %d:\n", batch_counter_);
   for (int i = 0; i < batch_size_; i++) {
     printf("(%d, %d), ", h_batch_buffer_[i] >> 30,
@@ -177,7 +177,7 @@ void batched_bench::print_batch() {
   printf("\n");
 }
 
-void batched_bench::print_reference() {
+void BatchedDataGen::print_reference() {
   printf("Reference keys:");
   for (int i = 0; i < num_ref_; i++) {
     printf("%d, ", h_key_ref_[i]);

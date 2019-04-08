@@ -18,12 +18,12 @@
 #include <fstream>
 #include <iostream>
 
+#include "batched_data_gen.h"
 #include "gpu_hash_table.cuh"
 #include "rapidjson/document.h"
 #include "rapidjson/ostreamwrapper.h"
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
-#include "batched_data_gen.h"
 
 // ======= Part 1: bulk experiments
 
@@ -35,15 +35,27 @@ template <typename KeyT, typename ValueT>
 void load_factor_bulk_experiment(uint32_t num_keys,
                                  uint32_t num_queries,
                                  std::string filename,
-                                 uint32_t algmode = 0,
+                                 uint32_t device_idx,
+                                 bool run_cudpp = false,
                                  int num_sample_lf = 10,
                                  float steps = 0.1f) {
   rapidjson::Document doc;
   doc.SetObject();
 
-  printf(
-      "hash,algmode,num_keys,num_queries,load_factor,chain,build_time,"
-      "build_rate,query_ratio,search_time,search_rate\n");
+  int devCount;
+  cudaGetDeviceCount(&devCount);
+  cudaDeviceProp devProp;
+  if (devCount) {
+    cudaSetDevice(device_idx);
+    cudaGetDeviceProperties(&devProp, device_idx);
+  }
+
+  rapidjson::Value main_object(rapidjson::kObjectType);
+  main_object.AddMember(
+      "device_name",
+      rapidjson::Value().SetString(devProp.name, 20, doc.GetAllocator()),
+      doc.GetAllocator());
+  rapidjson::Value object_array(rapidjson::kArrayType);
 
   uint32_t* h_key = new uint32_t[num_keys + num_queries];
   uint32_t* h_value = new uint32_t[num_keys + num_queries];
@@ -67,6 +79,8 @@ void load_factor_bulk_experiment(uint32_t num_keys,
   for (int i = 1; i < num_sample_lf; i++)
     expected_chain_list[i] = expected_chain_list[i - 1] + steps;
 
+  // query ratios to be tested against (fraction of queries that actually exist
+  // in the data structure):
   std::vector<float> query_ratio_list{0.0f, 1.0f};
 
   uint32_t experiment_id = 0;
@@ -81,25 +95,21 @@ void load_factor_bulk_experiment(uint32_t num_keys,
 
     // building the hash table:
     gpu_hash_table<KeyT, ValueT, DEVICE_ID, SlabHashTypeT::ConcurrentMap>
-        hash_table(num_keys, num_buckets, time(NULL));
+        hash_table(num_keys, num_buckets, time(nullptr));
 
     float build_time = hash_table.hash_build(h_key, h_value, num_keys);
 
-    // my_hash_table::gpu_hash_table hash_table(num_keys, num_buckets,
-    //                                          max_allocator_size);
-    // float init_time = hash_table.init();
-    // float build_time = hash_table.hash_build_bulk(h_key, h_value, num_keys);
+    // measuring the exact load factor in slab hash
     double load_factor = hash_table.measureLoadFactor();
 
     // ==== Running CUDPP hash table with the same load factor:
-    // cudpp_hash_table cudpp_hash(h_key, h_value, num_keys, num_queries,
-    //                             load_factor, false, false);
-    // float cudpp_build_time = cudpp_hash.hash_build();
+    if (run_cudpp) {
+      // cudpp_hash_table cudpp_hash(h_key, h_value, num_keys, num_queries,
+      //                             load_factor, false, false);
+      // float cudpp_build_time = cudpp_hash.hash_build();
+    }
 
-    printf("chain = %.2f, lf = %.2f, query ratios: : \n", expected_chain,
-           load_factor);
     for (auto query_ratio : query_ratio_list) {
-      printf("%.1f, ", query_ratio);
       // === generating random queries with a fixed ratio existing in keys
       uint32_t num_existing = static_cast<uint32_t>(query_ratio * num_queries);
 
@@ -119,15 +129,18 @@ void load_factor_bulk_experiment(uint32_t num_keys,
       // float search_time_bulk =
       //     hash_table.hash_search_bulk(h_query, h_result, num_queries);
       float search_time =
-          hash_table.hash_search(h_query, h_result, num_queries);      
+          hash_table.hash_search(h_query, h_result, num_queries);
       float search_time_bulk =
           hash_table.hash_search_bulk(h_query, h_result, num_queries);
 
-      // // CUDPP hash table:
-      // float cudpp_search_time =
-      //     cudpp_hash.lookup_hash_table(h_query, num_queries);
+      // CUDPP hash table:
+      if (run_cudpp) {
+        // float cudpp_search_time =
+        //     cudpp_hash.lookup_hash_table(h_query, num_queries);
+      }
 
       rapidjson::Value object(rapidjson::kObjectType);
+      object.AddMember("id", rapidjson::Value().SetInt(experiment_id++), doc.GetAllocator());
       object.AddMember("num_keys", rapidjson::Value().SetInt(num_keys),
                        doc.GetAllocator());
       object.AddMember("num_queries", rapidjson::Value().SetInt(num_queries),
@@ -152,7 +165,7 @@ void load_factor_bulk_experiment(uint32_t num_keys,
       object.AddMember("search_rate_mps",
                        rapidjson::Value().SetDouble(double(num_queries) /
                                                     search_time / 1000.0),
-                       doc.GetAllocator());      
+                       doc.GetAllocator());
       object.AddMember("query_ratio", rapidjson::Value().SetDouble(query_ratio),
                        doc.GetAllocator());
       object.AddMember("load_factor", rapidjson::Value().SetDouble(load_factor),
@@ -160,15 +173,18 @@ void load_factor_bulk_experiment(uint32_t num_keys,
       object.AddMember("exp_chain_length",
                        rapidjson::Value().SetDouble(expected_chain),
                        doc.GetAllocator());
-      std::string key_name(std::to_string(experiment_id++));
-      doc.AddMember(rapidjson::Value().SetString(
-                        key_name.c_str(), key_name.size(), doc.GetAllocator()),
-                    object, doc.GetAllocator());
+      // std::string key_name(std::to_string(experiment_id++));
+      object_array.PushBack(object, doc.GetAllocator());
+      // doc.AddMember(rapidjson::Value().SetString(
+      //                   key_name.c_str(), key_name.size(), doc.GetAllocator()),
+      //               object, doc.GetAllocator());
 
-      printf("SlabHash,%d,%d,%d,%.2f,%.2f,%.3f,%.3f,%.2f,%.3f,%.3f\n", algmode,
-             num_keys, num_queries, load_factor, expected_chain, build_time,
-             double(num_keys) / build_time / 1000.0, query_ratio,
-             search_time_bulk, double(num_queries) / search_time_bulk / 1000.0);
+      // printf("SlabHash,%d,%d,%d,%.2f,%.2f,%.3f,%.3f,%.2f,%.3f,%.3f\n",
+      // algmode,
+      //        num_keys, num_queries, load_factor, expected_chain, build_time,
+      //        double(num_keys) / build_time / 1000.0, query_ratio,
+      //        search_time_bulk, double(num_queries) / search_time_bulk /
+      //        1000.0);
       // fprintf(fptr, "CUDPP,%d,%d,%d,%.2f,%.2f,%.3f,%.3f,%.2f,%.3f,%.3f\n",
       //         algmode, num_keys, num_queries, load_factor, expected_chain,
       //         cudpp_build_time, double(num_keys) / cudpp_build_time /
@@ -182,6 +198,9 @@ void load_factor_bulk_experiment(uint32_t num_keys,
            double(num_keys) / build_time / 1000.0);
   }
 
+  // adding the array of objects into the document:
+  main_object.AddMember("trial", object_array, doc.GetAllocator());
+  doc.AddMember("slab_hash", main_object, doc.GetAllocator());
   // writing back the results as a json file
   std::ofstream ofs(filename);
   rapidjson::OStreamWrapper osw(ofs);

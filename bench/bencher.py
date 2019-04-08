@@ -44,7 +44,7 @@ def main(argv):
 		input_file = out_file_dest # input file for the next step
 		print(" == filename = " + out_file_dest)
 
-		args = (bin_file, "-filename", out_file_dest)
+		args = (bin_file, "-mode", "1", "-filename", out_file_dest)
 
 		print(" === Started benchmarking ... ")
 
@@ -60,15 +60,36 @@ def main(argv):
 	# reading the json files:
 	with open(input_file) as json_file:
 		data = json.load(json_file)
+		print(data["slab_hash"]['device_name'])
+		trials = data["slab_hash"]["trial"]
 
-		load_factor = []
-		build_rate = []
-		for exp_id in data:
-			load_factor.append(data[exp_id]["load_factor"])
-			build_rate.append(data[exp_id]["build_rate_mps"])
+		tabular_data_q0 = []
+		tabular_data_q1 = []
+		# load_factor = []
+		# build_rate = []
 
-		print("load_factor " + str(load_factor) )
-		# plt.plot(build_rate, load_factor)
+		for trial in trials:
+			if( abs(trial["query_ratio"]) < 0.000001):
+				tabular_data_q0.append((trial["load_factor"], trial["build_rate_mps"], trial["search_rate_mps"], trial["search_rate_bulk_mps"]))
+			else:
+				tabular_data_q1.append((trial["load_factor"], trial["build_rate_mps"], trial["search_rate_mps"], trial["search_rate_bulk_mps"]))
+			# load_factor.append(trial["load_factor"])
+			# build_rate.append(trial["build_rate_mps"])
+
+		tabular_data_q0.sort()
+		print("Experiments when none of the queries exist:")
+		print("load factor\tbuild rate(M/s)\t\tsearch rate(M/s)\tsearch rate bulk(M/s)")
+		for pair in tabular_data_q0:
+			print("%.2f\t\t%.3f\t\t%.3f\t\t%.3f" % (pair[0], pair[1], pair[2], pair[3]))		
+
+		tabular_data_q1.sort()
+		print("Experiments when all of the queries exist:")
+		print("load factor\tbuild rate(M/s)\t\tsearch rate(M/s)\tsearch rate bulk(M/s)")
+		for pair in tabular_data_q1:
+			print("%.2f\t\t%.3f\t\t%.3f\t\t%.3f" % (pair[0], pair[1], pair[2], pair[3]))		
+
+		# print(rate_vector)
+		# plt.plot(load_factor, build_rate)
 		# plt.show()
 
 if __name__ == "__main__":
