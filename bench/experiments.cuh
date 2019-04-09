@@ -198,17 +198,152 @@ void load_factor_bulk_experiment(uint32_t num_keys,
     delete[] h_result;
 }
 
-void singleton_experiment(uint32_t num_keys, uint32_t num_queries) {
+/*
+* In this experiment, a single experiment is performed:
+  Inputs: number of elements, expected chain length (# buckets)
+*/
+template<typename KeyT, typename ValueT>
+void singleton_experiment(uint32_t num_keys,
+                          uint32_t num_queries,
+                          float expected_chain_length,
+                          std::string filename,
+                          uint32_t device_idx,
+                          bool run_cudpp = false,
+                          bool verbose = false) {
+  rapidjson::Document doc;
+  doc.SetObject();
+
+  int devCount;
+  cudaGetDeviceCount(&devCount);
+  cudaDeviceProp devProp;
+  if (devCount) {
+    cudaSetDevice(device_idx);
+    cudaGetDeviceProperties(&devProp, device_idx);
+  }
+
+  rapidjson::Value main_object(rapidjson::kObjectType);
+  main_object.AddMember(
+      "device_name",
+      rapidjson::Value().SetString(devProp.name, 20, doc.GetAllocator()),
+      doc.GetAllocator());
+  rapidjson::Value object_array(rapidjson::kArrayType);
+
+  KeyT* h_key = new KeyT[num_keys + num_queries];
+  ValueT* h_value = new ValueT[num_keys + num_queries];
+  KeyT* h_query = new KeyT[num_queries];
+  ValueT* h_result = new ValueT[num_queries];
+
+  uint32_t experiment_id = 0;
+  const uint32_t num_elements_per_unit = 15;
+  // === generating random key-values
   BatchedDataGen key_gen(num_keys + num_queries, num_keys + num_queries);
   key_gen.generate_random_keys(std::time(nullptr), /*num_msb = */ 0, true);
-  auto ptr = key_gen.getSingleBatchPointer(num_keys, num_queries,
-                                           /*num_existing = */ 4);
+  auto f = [](uint32_t key) { return 10 * key; };
 
-  for (int i = 0; i < num_keys; i++) {
-    printf("%u(%d), ", ptr[i], ptr[i] & 0x1F);
+  const uint32_t expected_elements_per_bucket =
+      expected_chain_length * num_elements_per_unit;
+  const uint32_t num_buckets = (num_keys + expected_elements_per_bucket - 1) /
+                         expected_elements_per_bucket;
+
+  // query ratios to be tested against (fraction of queries that actually exist
+  // in the data structure):
+  std::vector<float> query_ratio_list{0.0f, 1.0f};
+
+  for (auto query_ratio : query_ratio_list) {
+    // === generating random queries with a fixed ratio existing in keys
+    const uint32_t num_existing = static_cast<uint32_t>(query_ratio * num_queries);
+    auto buffer_ptr =
+        key_gen.getSingleBatchPointer(num_keys, num_queries, num_existing);
+
+    for (int i = 0; i < num_keys; i++) {
+      h_key[i] = buffer_ptr[i];
+      h_value[i] = f(h_key[i]);
+    }
+
+    for (int i = 0; i < num_queries; i++) {
+      h_query[i] = buffer_ptr[num_keys + i];
+    }
+
+    // building the hash table:
+    gpu_hash_table<KeyT, ValueT, DEVICE_ID, SlabHashTypeT::ConcurrentMap>
+        hash_table(num_keys, num_buckets, time(nullptr));
+
+    float build_time = hash_table.hash_build(h_key, h_value, num_keys);
+
+    // measuring the exact load factor in slab hash
+    double load_factor = hash_table.measureLoadFactor();
+
+    if (verbose) {
+      printf(
+          "num_element = %u, load_factor = %.2f, query_ratio = %.2f, "
+          "build_rate: %.2f M elements/s\n",
+          num_keys, load_factor, query_ratio,
+          double(num_keys) / build_time / 1000.0);
+    }
+    // performing the queries:
+    float search_time = hash_table.hash_search(h_query, h_result, num_queries);
+    float search_time_bulk =
+        hash_table.hash_search_bulk(h_query, h_result, num_queries);
+
+    // CUDPP hash table:
+    if (run_cudpp) {
+      // float cudpp_search_time =
+      //     cudpp_hash.lookup_hash_table(h_query, num_queries);
+    }
+
+    rapidjson::Value object(rapidjson::kObjectType);
+    object.AddMember("id", rapidjson::Value().SetInt(experiment_id++),
+                     doc.GetAllocator());
+    object.AddMember("num_keys", rapidjson::Value().SetInt(num_keys),
+                     doc.GetAllocator());
+    object.AddMember("num_queries", rapidjson::Value().SetInt(num_queries),
+                     doc.GetAllocator());
+    object.AddMember("build_time_ms", rapidjson::Value().SetDouble(build_time),
+                     doc.GetAllocator());
+    object.AddMember(
+        "build_rate_mps",
+        rapidjson::Value().SetDouble(double(num_keys) / build_time / 1000.0),
+        doc.GetAllocator());
+    object.AddMember("search_time_bulk_ms",
+                     rapidjson::Value().SetDouble(search_time_bulk),
+                     doc.GetAllocator());
+    object.AddMember("search_rate_bulk_mps",
+                     rapidjson::Value().SetDouble(double(num_queries) /
+                                                  search_time_bulk / 1000.0),
+                     doc.GetAllocator());
+    object.AddMember("search_time_ms",
+                     rapidjson::Value().SetDouble(search_time),
+                     doc.GetAllocator());
+    object.AddMember("search_rate_mps",
+                     rapidjson::Value().SetDouble(double(num_queries) /
+                                                  search_time / 1000.0),
+                     doc.GetAllocator());
+    object.AddMember("query_ratio", rapidjson::Value().SetDouble(query_ratio),
+                     doc.GetAllocator());
+    object.AddMember("load_factor", rapidjson::Value().SetDouble(load_factor),
+                     doc.GetAllocator());
+    object.AddMember("exp_chain_length",
+                     rapidjson::Value().SetDouble(expected_chain_length),
+                     doc.GetAllocator());
+    object_array.PushBack(object, doc.GetAllocator());
   }
-  printf("\n == queries\n");
-  for (int i = 0; i < num_queries; i++) {
-    printf("%u(%d), ", ptr[num_keys + i], ptr[num_keys + i] & 0x1F);
-  }
+
+  // adding the array of objects into the document:
+  main_object.AddMember("trial", object_array, doc.GetAllocator());
+  doc.AddMember("slab_hash", main_object, doc.GetAllocator());
+  // writing back the results as a json file
+  std::ofstream ofs(filename);
+  rapidjson::OStreamWrapper osw(ofs);
+  rapidjson::Writer<rapidjson::OStreamWrapper> writer(osw);
+
+  doc.Accept(writer);
+
+  if (h_key)
+    delete[] h_key;
+  if (h_value)
+    delete[] h_value;
+  if (h_query)
+    delete[] h_query;
+  if (h_result)
+    delete[] h_result;
 }

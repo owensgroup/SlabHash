@@ -15,7 +15,6 @@
  */
 
 #include <stdio.h>
-#include <iostream>
 #include <unistd.h>
 #include <algorithm>
 #include <cstdlib>
@@ -52,6 +51,10 @@ int main(int argc, char** argv) {
   // float d_steps = 0.1f;
   uint32_t num_keys = (1 << 22);
   uint32_t num_queries = num_keys;
+  float expected_chain = 0.6f;
+
+  bool verbose = false;
+  int device_idx = 0;
   // float alpha = 1.0f;
   // // for mode 5:
   // uint32_t buckets = 1;
@@ -62,6 +65,24 @@ int main(int argc, char** argv) {
 
   if (cmdOptionExists(argv, argc + argv, "-mode"))
     mode = atoi(getCmdOption(argv, argv + argc, "-mode"));
+  if (cmdOptionExists(argv, argc + argv, "-num_key"))
+    num_keys = atoi(getCmdOption(argv, argv + argc, "-num_key"));
+  if (cmdOptionExists(argv, argc + argv, "-num_query"))
+    num_queries = atoi(getCmdOption(argv, argv + argc, "-num_query"));
+  else {
+    num_queries = num_keys;
+  }
+  assert(num_keys >= 0);
+  if (cmdOptionExists(argv, argc + argv, "-expected_chain"))
+    expected_chain = atof(getCmdOption(argv, argv + argc, "-expected_chain"));
+  assert(expected_chain > 0);
+
+  if (cmdOptionExists(argv, argc + argv, "-verbose")) {
+    verbose = true;
+  }
+
+  if (cmdOptionExists(argv, argc + argv, "-device"))
+    device_idx = atoi(getCmdOption(argv, argv + argc, "-device"));
   // if (cmdOptionExists(argv, argc + argv, "-buckets"))
   //   buckets = atoi(getCmdOption(argv, argv + argc, "-buckets"));
   // if (cmdOptionExists(argv, argc + argv, "-iter"))
@@ -121,11 +142,14 @@ int main(int argc, char** argv) {
   // running the actual experiment
   switch (mode) {
     case 0:  // singleton experiment
-    singleton_experiment(16, 8);
+      singleton_experiment<KeyT, ValueT>(num_keys, num_queries, expected_chain,
+                                         filename, device_idx,
+                                         /*run_cudpp = */ false, verbose);
       break;
     case 1:  // bulk build, num elements fixed, load factor changing
-      load_factor_bulk_experiment<KeyT, ValueT>(
-          num_keys, num_queries, filename, /*device_idx = */ 0, false, 10, 0.1f);
+      load_factor_bulk_experiment<KeyT, ValueT>(num_keys, num_queries, filename,
+                                                /*device_idx = */ 0, false, 10,
+                                                0.1f);
       break;
     case 2:  // bulk build, load factor fixed, num elements changing
       break;
