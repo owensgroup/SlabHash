@@ -44,14 +44,15 @@ inline bool cmdOptionExists(char** begin,
 
 int main(int argc, char** argv) {
   int mode = 0;
-  // int num_iter = 1;
-  // int n_start = 20;  // num_keys_start = 1 << n_start;
-  // int n_end = 20;    // num_keys_start = 1 << n_start;
+  uint32_t num_iter = 1;
+  uint32_t n_start = 20;  // num_keys_start = 1 << n_start;
+  uint32_t n_end = 20;    // num_keys_start = 1 << n_start;
   // int num_samples = 10;
   // float d_steps = 0.1f;
   uint32_t num_keys = (1 << 22);
   uint32_t num_queries = num_keys;
   float expected_chain = 0.6f;
+  float existing_ratio = 0.0f;
 
   bool verbose = false;
   int device_idx = 0;
@@ -76,6 +77,8 @@ int main(int argc, char** argv) {
   if (cmdOptionExists(argv, argc + argv, "-expected_chain"))
     expected_chain = atof(getCmdOption(argv, argv + argc, "-expected_chain"));
   assert(expected_chain > 0);
+  if (cmdOptionExists(argv, argc + argv, "-query_ratio"))
+    existing_ratio = atof(getCmdOption(argv, argv + argc, "-query_ratio"));  
 
   if (cmdOptionExists(argv, argc + argv, "-verbose")) {
     verbose = true;
@@ -85,16 +88,18 @@ int main(int argc, char** argv) {
     device_idx = atoi(getCmdOption(argv, argv + argc, "-device"));
   // if (cmdOptionExists(argv, argc + argv, "-buckets"))
   //   buckets = atoi(getCmdOption(argv, argv + argc, "-buckets"));
-  // if (cmdOptionExists(argv, argc + argv, "-iter"))
-  //   num_iter = atoi(getCmdOption(argv, argv + argc, "-iter"));
-  // if (cmdOptionExists(argv, argc + argv, "-nStart")) {
-  //   n_start = atoi(getCmdOption(argv, argv + argc, "-nStart"));
-  //   // for mode 0:
-  //   num_keys = (1 << n_start);
-  //   num_queries = num_keys;
-  // }
-  // if (cmdOptionExists(argv, argc + argv, "-nEnd"))
-  //   n_end = atoi(getCmdOption(argv, argv + argc, "-nEnd"));
+  if (cmdOptionExists(argv, argc + argv, "-iter")){
+    num_iter = atoi(getCmdOption(argv, argv + argc, "-iter"));
+  }
+  if (cmdOptionExists(argv, argc + argv, "-nStart")) {
+    n_start = atoi(getCmdOption(argv, argv + argc, "-nStart"));
+    // for mode 0:
+    num_keys = (1 << n_start);
+    num_queries = num_keys;
+  }
+  if (cmdOptionExists(argv, argc + argv, "-nEnd")){
+    n_end = atoi(getCmdOption(argv, argv + argc, "-nEnd"));
+  }
   // if (cmdOptionExists(argv, argc + argv, "-batch"))
   //   init_batches = atoi(getCmdOption(argv, argv + argc, "-batch"));
   // if (cmdOptionExists(argv, argc + argv, "-nSample"))
@@ -152,6 +157,15 @@ int main(int argc, char** argv) {
                                                 0.1f);
       break;
     case 2:  // bulk build, load factor fixed, num elements changing
+      build_search_bulk_experiment<KeyT, ValueT>(1 << n_start,
+                                       1 << n_end,
+                                       filename,
+                                       expected_chain,
+                                       existing_ratio,
+                                       device_idx,
+                                       num_iter,
+                                       /* run_cudpp = */false,
+                                       /* verbose = */verbose);
       break;
     case 3:  // concurrent experiment
       break;

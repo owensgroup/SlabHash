@@ -55,6 +55,28 @@ def analyze_load_factor_experiment(input_file):
 		for pair in tabular_data_q1:
 			print("%.2f\t\t%.3f\t\t%.3f\t\t%.3f" % (pair[0], pair[1], pair[2], pair[3]))
 
+def analyze_table_size_experiment(input_file):
+	with open(input_file) as json_file:
+		data = json.load(json_file)
+		print(data["slab_hash"]['device_name'])
+		trials = data["slab_hash"]["trial"]
+
+		tabular_data = []
+
+		for trial in trials:
+			tabular_data.append((trial["num_keys"], 
+				trial['load_factor'], 
+				trial['query_ratio'], 
+				trial["build_rate_mps"], 
+				trial["search_rate_mps"], 
+				trial["search_rate_bulk_mps"]))
+
+		tabular_data.sort()
+		# print("Experiments when %.2f\% of the queries exist:" % (tabular_data[0][2]))
+		print("num keys\tbuild rate(M/s)\t\tsearch rate(M/s)\tsearch rate bulk(M/s)")
+		for pair in tabular_data:
+			print("%d\t\t%.3f\t\t%.3f\t\t%.3f" % (pair[0], pair[3], pair[4], pair[5]))		
+
 def main(argv):
 	input_file = ''
 	try:
@@ -104,6 +126,13 @@ def main(argv):
 				"-filename", out_file_dest)
 		elif mode == 1:
 			args = (bin_file, "-mode", str(mode), "-filename", out_file_dest)
+		elif mode == 2:
+				args = (bin_file, "-mode", str(mode), 
+				"-nStart", str(18),
+				"-nEnd", str(23), 
+				"-expected_chain", str(0.6),
+				"-query_ratio", str(1.0),
+				"-filename", out_file_dest)
 
 		print(" === Started benchmarking ... ")
 
@@ -121,6 +150,8 @@ def main(argv):
 		analyze_singleton_experiment(input_file)
 	elif mode == 1:
 		analyze_load_factor_experiment(input_file)
+	elif mode == 2:
+		analyze_table_size_experiment(input_file)
 	else:
 		print("Invalid mode entered")
 		sys.exit(2)

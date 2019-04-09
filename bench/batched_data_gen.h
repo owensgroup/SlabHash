@@ -53,6 +53,7 @@ class BatchedDataGen {
   uint32_t* getSingleBatchPointer(uint32_t num_keys,
                                   uint32_t num_queries,
                                   uint32_t num_existing);
+  uint32_t* getKeyRefPointer() { return h_key_ref_; }
   uint32_t get_edge_index();
   void set_edge_index(uint32_t new_edge_index);
   uint32_t* next_batch(float a_insert, float b_delete, float c_search_exist);

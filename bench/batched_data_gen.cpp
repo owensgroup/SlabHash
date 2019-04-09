@@ -99,14 +99,13 @@ void BatchedDataGen::generate_random_keys(int seed,
       h_key_ref_[i] = key;
     }
   }
-  // std::cout<< " == 1) all random keys generated successfully" << std::endl;
 }
 
 uint32_t* BatchedDataGen::getSingleBatchPointer(
     uint32_t num_keys,
     uint32_t num_queries,
     uint32_t num_existing) {
-  assert(num_keys + num_queries == batch_size_);
+  assert(num_keys + num_queries <= batch_size_);
   assert(batch_size_ <= num_ref_);
   assert(num_existing <= num_queries);
   std::copy(h_key_ref_, h_key_ref_ + num_keys, h_batch_buffer_);
@@ -116,7 +115,6 @@ uint32_t* BatchedDataGen::getSingleBatchPointer(
   std::mt19937 rng(std::time(nullptr));
   std::shuffle(h_batch_buffer_, h_batch_buffer_ + num_keys, rng);
   std::shuffle(h_batch_buffer_ + num_keys, h_batch_buffer_ + num_keys + num_queries, rng);
-  // std::cout << " == 2) random batch generated" << std::endl;
   return h_batch_buffer_;
 }
 
