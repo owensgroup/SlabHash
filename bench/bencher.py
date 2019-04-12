@@ -75,7 +75,35 @@ def analyze_table_size_experiment(input_file):
 		# print("Experiments when %.2f\% of the queries exist:" % (tabular_data[0][2]))
 		print("num keys\tbuild rate(M/s)\t\tsearch rate(M/s)\tsearch rate bulk(M/s)")
 		for pair in tabular_data:
-			print("%d\t\t%.3f\t\t%.3f\t\t%.3f" % (pair[0], pair[3], pair[4], pair[5]))		
+			print("%d\t\t%.3f\t\t%.3f\t\t%.3f" % (pair[0], pair[3], pair[4], pair[5]))
+
+def analyze_concurrent_experiment(input_file):
+	with open(input_file) as json_file:
+		data = json.load(json_file)
+		print("GPU hardware: %s" % (data["slab_hash"]['device_name']))
+		trials = data["slab_hash"]["trial"]
+
+		tabular_data = []
+
+		for trial in trials:
+			tabular_data.append((trial["init_load_factor"], 
+				trial['final_load_factor'], 
+				trial['num_buckets'], 
+				trial["initial_rate_mps"], 
+				trial["concurrent_rate_mps"]))
+
+		tabular_data.sort()
+		print("===============================================================================================")
+		print("Concurrent experiment:")
+		print("\tvariable load factor, fixed number of elements")
+		print("\tOperation ratio: (insert, delete, search) = (%.2f, %.2f, [%.2f, %.2f])" % (trials[0]['insert_ratio'], trials[0]['delete_ratio'], trials[0]['search_exist_ratio'], trials[0]['search_non_exist_ratio']))
+		print("===============================================================================================")
+		print("batch_size = %d, init num batches = %d, final num batches = %d" % (trials[0]['batch_size'], trials[0]['num_init_batches'], trials[0]['num_batches']))
+		print("===============================================================================================")
+		print("init lf\t\tfinal lf\tnum buckets\tinit build rate(M/s)\tconcurrent rate(Mop/s)")
+		print("===============================================================================================")
+		for pair in tabular_data:
+			print("%.2f\t\t%.2f\t\t%d\t\t%.3f\t\t%.3f" % (pair[0], pair[1], pair[2], pair[3], pair[4]))					
 
 def main(argv):
 	input_file = ''
@@ -133,6 +161,15 @@ def main(argv):
 				"-expected_chain", str(0.6),
 				"-query_ratio", str(1.0),
 				"-filename", out_file_dest)
+		elif mode == 3:
+			args = (bin_file, "-mode", str(mode),
+			"-nStart", str(18),
+			"-nEnd", str(21),
+			"-num_batch", str(4),
+			"-init_batch", str(3),
+			"-lf_conc_step", str(0.1),
+			"-lf_conc_num_sample", str(10),  
+			"-filename", out_file_dest)
 
 		print(" === Started benchmarking ... ")
 
@@ -152,6 +189,8 @@ def main(argv):
 		analyze_load_factor_experiment(input_file)
 	elif mode == 2:
 		analyze_table_size_experiment(input_file)
+	elif mode == 3:
+		analyze_concurrent_experiment(input_file)	
 	else:
 		print("Invalid mode entered")
 		sys.exit(2)

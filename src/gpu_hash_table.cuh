@@ -218,6 +218,41 @@ class gpu_hash_table {
     cudaEventDestroy(stop);
     return temp_time;
   }
+
+  float batched_operations(uint32_t* h_batch_op,
+                           uint32_t* h_results,
+                           uint32_t batch_size,
+                           uint32_t batch_id) {
+    CHECK_CUDA_ERROR(cudaSetDevice(DEVICE_IDX));
+    CHECK_CUDA_ERROR(cudaMemcpy(d_key_ + batch_id * batch_size, h_batch_op,
+                                sizeof(uint32_t) * batch_size,
+                                cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERROR(cudaMemset(d_result_ + batch_id * batch_size, 0xFF,
+                                sizeof(uint32_t) * batch_size));
+
+    float temp_time = 0.0f;
+
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+
+    cudaEventRecord(start, 0);
+    slab_hash_->batchedOperation(d_key_ + batch_id * batch_size, d_result_,
+                               batch_size);
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&temp_time, start, stop);
+
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+
+    CHECK_ERROR(cudaMemcpy(
+        h_results + batch_id * batch_size, d_result_ + batch_id * batch_size,
+        sizeof(uint32_t) * batch_size, cudaMemcpyDeviceToHost));
+    cudaDeviceSynchronize();
+    return temp_time;
+  }
+
   float measureLoadFactor(int flag = 0) {
     return slab_hash_->computeLoadFactor(flag);
   }

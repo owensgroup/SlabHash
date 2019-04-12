@@ -410,7 +410,6 @@ void build_search_bulk_experiment(uint32_t num_keys_start,
     const uint32_t num_buckets = (num_keys + expected_elements_per_bucket - 1) /
                                  expected_elements_per_bucket;
 
-    float init_time = 0.0f;
     float build_time = 0.0f;
     // float cudpp_build_time = 0.0f;
     float search_time_bulk = 0.0f;
@@ -469,8 +468,9 @@ void build_search_bulk_experiment(uint32_t num_keys_start,
     search_time_bulk /= num_iter;
     load_factor_total /= num_iter;
 
-    if(verbose) {
-      printf("num_keys = %d, build_rate_mps = %.3f\n", num_keys, double(num_keys) / build_time / 1000.0);
+    if (verbose) {
+      printf("num_keys = %d, build_rate_mps = %.3f\n", num_keys,
+             double(num_keys) / build_time / 1000.0);
     }
     // storing the results:
     rapidjson::Value object(rapidjson::kObjectType);
@@ -516,7 +516,6 @@ void build_search_bulk_experiment(uint32_t num_keys_start,
     object_array.PushBack(object, doc.GetAllocator());
   }
 
-
   // adding the array of objects into the document:
   main_object.AddMember("trial", object_array, doc.GetAllocator());
   doc.AddMember("slab_hash", main_object, doc.GetAllocator());
@@ -533,6 +532,171 @@ void build_search_bulk_experiment(uint32_t num_keys_start,
     delete[] h_value;
   if (h_query)
     delete[] h_query;
+  if (h_result)
+    delete[] h_result;
+}
+
+template <typename KeyT, typename ValueT>
+void concurrent_batched_op_load_factor_experiment(uint32_t max_key_num,
+                                                  uint32_t batch_size,
+                                                  uint32_t num_batches,
+                                                  uint32_t num_initial_batches,
+                                                  float a_insert,
+                                                  float b_delete,
+                                                  float c_search_exist,
+                                                  std::string filename,
+                                                  uint32_t device_idx = 0,
+                                                  float lf_steps = 0.1,
+                                                  uint32_t num_sample_lf = 100,
+                                                  int num_iter = 1,
+                                                  bool verbose = false) {
+  rapidjson::Document doc;
+  doc.SetObject();
+
+  int devCount;
+  cudaGetDeviceCount(&devCount);
+  cudaDeviceProp devProp;
+  if (devCount) {
+    cudaSetDevice(device_idx);
+    cudaGetDeviceProperties(&devProp, device_idx);
+  }
+
+  rapidjson::Value main_object(rapidjson::kObjectType);
+  main_object.AddMember(
+      "device_name",
+      rapidjson::Value().SetString(devProp.name, 20, doc.GetAllocator()),
+      doc.GetAllocator());
+  rapidjson::Value object_array(rapidjson::kArrayType);
+
+  const uint32_t num_keys = num_batches * batch_size;
+  uint32_t* h_result = new uint32_t[max_key_num];
+
+  // generating different load factors
+  std::vector<float> expected_chain_list(num_sample_lf);
+  expected_chain_list[0] = 0.1f;
+  for (int i = 1; i < num_sample_lf; i++) {
+    expected_chain_list[i] = expected_chain_list[i - 1] + lf_steps;
+  }
+
+  const uint32_t num_elements_per_unit = 15;  // todo: change this
+
+  uint32_t experiment_id = 0;
+
+  for (int i_expected_chain = 0; i_expected_chain < num_sample_lf;
+       i_expected_chain++) {
+    float init_build_time = 0.0f;
+    float concurrent_time = 0.0f;
+    double init_load_factor = 0.0;
+    double final_load_factor = 0.0;
+    float expected_chain = expected_chain_list[i_expected_chain];
+    uint32_t expected_elements_per_bucket =
+        expected_chain * num_elements_per_unit;
+    uint32_t num_buckets = (num_keys + expected_elements_per_bucket - 1) /
+                           expected_elements_per_bucket;
+
+    // building the hash table:
+    for (int iter = 0; iter < num_iter; iter++) {
+      // building the hash table:
+      gpu_hash_table<KeyT, ValueT, DEVICE_ID, SlabHashTypeT::ConcurrentMap>
+          hash_table(num_keys, num_buckets, time(nullptr));
+
+      BatchedDataGen key_gen(max_key_num, batch_size);
+      key_gen.generate_random_keys(std::time(nullptr), /*num_msb = */ 2,
+                                   /*unique = */ true);
+
+      // initial building phase:
+      int batch_id;
+      for (batch_id = 0; batch_id < num_initial_batches; batch_id++) {
+        // Pure insertion
+        key_gen.next_batch(1.0f, 0.0f, 0.0f);
+        init_build_time += hash_table.batched_operations(
+            key_gen.h_batch_buffer_, h_result, batch_size, batch_id);
+      }
+      // init_build_time /= num_initial_batches;
+      init_load_factor += hash_table.measureLoadFactor();
+
+      // concurrent update phase:
+      for (; batch_id < num_batches; batch_id++) {
+        key_gen.next_batch(a_insert, b_delete, c_search_exist);
+        concurrent_time += hash_table.batched_operations(
+            key_gen.h_batch_buffer_, h_result, batch_size, batch_id);
+      }
+
+      final_load_factor += hash_table.measureLoadFactor();
+    }
+    // === computing average values:
+    init_build_time /= (num_iter * num_initial_batches);
+    concurrent_time /= (num_iter * (num_batches - num_initial_batches));
+    init_load_factor /= num_iter;
+    final_load_factor /= num_iter;
+
+    if (verbose) {
+      printf(
+          "expected = %.2f, init_load_factor = %.2f, final_load_factor = %.2f, "
+          "concurrent_rate = %.3f M op/s\n",
+          expected_chain, init_load_factor, final_load_factor,
+          float(batch_size) / concurrent_time / 1000.0f);
+    }
+
+    // storing the results:
+    rapidjson::Value object(rapidjson::kObjectType);
+    object.AddMember("id", rapidjson::Value().SetInt(experiment_id++),
+                     doc.GetAllocator());
+    object.AddMember("num_keys", rapidjson::Value().SetInt(num_keys),
+                     doc.GetAllocator());
+    object.AddMember("num_buckets", rapidjson::Value().SetInt(num_buckets),
+                     doc.GetAllocator());
+    object.AddMember("batch_size", rapidjson::Value().SetInt(batch_size),
+                     doc.GetAllocator());
+    object.AddMember("num_batches", rapidjson::Value().SetInt(num_batches),
+                     doc.GetAllocator());
+    object.AddMember("num_init_batches",
+                     rapidjson::Value().SetInt(num_initial_batches),
+                     doc.GetAllocator());
+    object.AddMember("init_load_factor",
+                     rapidjson::Value().SetDouble(init_load_factor),
+                     doc.GetAllocator());
+    object.AddMember("final_load_factor",
+                     rapidjson::Value().SetDouble(final_load_factor),
+                     doc.GetAllocator());
+    object.AddMember("insert_ratio", rapidjson::Value().SetDouble(a_insert),
+                     doc.GetAllocator());
+    object.AddMember("delete_ratio", rapidjson::Value().SetDouble(b_delete),
+                     doc.GetAllocator());
+    object.AddMember("search_exist_ratio",
+                     rapidjson::Value().SetDouble(c_search_exist),
+                     doc.GetAllocator());
+    object.AddMember("search_non_exist_ratio",
+                     rapidjson::Value().SetDouble(
+                         1.0 - (a_insert + b_delete + c_search_exist)),
+                     doc.GetAllocator());
+    object.AddMember("initial_time_ms",
+                     rapidjson::Value().SetDouble(init_build_time),
+                     doc.GetAllocator());
+    object.AddMember("initial_rate_mps",
+                     rapidjson::Value().SetDouble(double(batch_size) /
+                                                  init_build_time / 1000.0),
+                     doc.GetAllocator());
+    object.AddMember("concurrent_time_ms",
+                     rapidjson::Value().SetDouble(concurrent_time),
+                     doc.GetAllocator());
+    object.AddMember("concurrent_rate_mps",
+                     rapidjson::Value().SetDouble(double(batch_size) /
+                                                  concurrent_time / 1000.0),
+                     doc.GetAllocator());
+    object_array.PushBack(object, doc.GetAllocator());
+  }
+
+  // adding the array of objects into the document:
+  main_object.AddMember("trial", object_array, doc.GetAllocator());
+  doc.AddMember("slab_hash", main_object, doc.GetAllocator());
+  // writing back the results as a json file
+  std::ofstream ofs(filename);
+  rapidjson::OStreamWrapper osw(ofs);
+  rapidjson::Writer<rapidjson::OStreamWrapper> writer(osw);
+
+  doc.Accept(writer);
+
   if (h_result)
     delete[] h_result;
 }

@@ -105,6 +105,7 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
                                             const KeyT& myKey,
                                             const uint32_t bucket_id);
 
+
   __device__ __forceinline__ uint32_t* getPointerFromSlab(
       const SlabAddressT& slab_address,
       const uint32_t laneId) {
@@ -229,4 +230,5 @@ class GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashTypeT::ConcurrentMap> {
   void searchIndividual(KeyT* d_query, ValueT* d_result, uint32_t num_queries);
   void searchBulk(KeyT* d_query, ValueT* d_result, uint32_t num_queries);
   void deleteIndividual(KeyT* d_key, uint32_t num_keys);
+  void batchedOperation(KeyT* d_key, ValueT* d_result, uint32_t num_ops);
 };

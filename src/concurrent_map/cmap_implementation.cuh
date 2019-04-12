@@ -53,6 +53,16 @@ void GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashTypeT::ConcurrentMap>::
       <<<num_blocks, BLOCKSIZE_>>>(d_key, num_keys, gpu_context_);
 }
 
+// perform a batch of (a mixture of) updates/searches
+template <typename KeyT, typename ValueT, uint32_t DEVICE_IDX>
+void GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashTypeT::ConcurrentMap>::
+    batchedOperation(KeyT* d_key, ValueT* d_result, uint32_t num_ops) {
+  CHECK_CUDA_ERROR(cudaSetDevice(DEVICE_IDX));
+  const uint32_t num_blocks = (num_ops + BLOCKSIZE_ - 1) / BLOCKSIZE_;
+  batched_operations<KeyT, ValueT>
+      <<<num_blocks, BLOCKSIZE_>>>(d_key, d_result, num_ops, gpu_context_);
+}
+
 template <typename KeyT, typename ValueT, uint32_t DEVICE_IDX>
 std::string
 GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashTypeT::ConcurrentMap>::

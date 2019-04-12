@@ -53,9 +53,18 @@ int main(int argc, char** argv) {
   uint32_t num_queries = num_keys;
   float expected_chain = 0.6f;
   float existing_ratio = 0.0f;
+  int num_batch = 2;
+  int init_batch = 1;
 
   bool verbose = false;
   int device_idx = 0;
+
+  // mode 3 parameters:
+  float insert_ratio = 0.1f;
+  float delete_ratio = 0.1f;
+  float search_exist_ratio = 0.4f;
+  float lf_conc_step = 0.1f;
+  int lf_conc_num_sample = 10;
   // float alpha = 1.0f;
   // // for mode 5:
   // uint32_t buckets = 1;
@@ -73,13 +82,12 @@ int main(int argc, char** argv) {
   else {
     num_queries = num_keys;
   }
-  assert(num_keys >= 0);
+
   if (cmdOptionExists(argv, argc + argv, "-expected_chain"))
     expected_chain = atof(getCmdOption(argv, argv + argc, "-expected_chain"));
   assert(expected_chain > 0);
   if (cmdOptionExists(argv, argc + argv, "-query_ratio"))
-    existing_ratio = atof(getCmdOption(argv, argv + argc, "-query_ratio"));  
-
+    existing_ratio = atof(getCmdOption(argv, argv + argc, "-query_ratio"));
   if (cmdOptionExists(argv, argc + argv, "-verbose")) {
     verbose = true;
   }
@@ -88,7 +96,7 @@ int main(int argc, char** argv) {
     device_idx = atoi(getCmdOption(argv, argv + argc, "-device"));
   // if (cmdOptionExists(argv, argc + argv, "-buckets"))
   //   buckets = atoi(getCmdOption(argv, argv + argc, "-buckets"));
-  if (cmdOptionExists(argv, argc + argv, "-iter")){
+  if (cmdOptionExists(argv, argc + argv, "-iter")) {
     num_iter = atoi(getCmdOption(argv, argv + argc, "-iter"));
   }
   if (cmdOptionExists(argv, argc + argv, "-nStart")) {
@@ -97,11 +105,29 @@ int main(int argc, char** argv) {
     num_keys = (1 << n_start);
     num_queries = num_keys;
   }
-  if (cmdOptionExists(argv, argc + argv, "-nEnd")){
+  if (cmdOptionExists(argv, argc + argv, "-nEnd")) {
     n_end = atoi(getCmdOption(argv, argv + argc, "-nEnd"));
   }
-  // if (cmdOptionExists(argv, argc + argv, "-batch"))
-  //   init_batches = atoi(getCmdOption(argv, argv + argc, "-batch"));
+  if (cmdOptionExists(argv, argc + argv, "-num_batch")) {
+    num_batch = atoi(getCmdOption(argv, argv + argc, "-num_batch"));
+  }
+  if (cmdOptionExists(argv, argc + argv, "-init_batch")) {
+    init_batch = atoi(getCmdOption(argv, argv + argc, "-init_batch"));
+  }
+  if (cmdOptionExists(argv, argc + argv, "-insert_ratio"))
+    insert_ratio = atof(getCmdOption(argv, argv + argc, "-insert_ratio"));
+  if (cmdOptionExists(argv, argc + argv, "-delete_ratio"))
+    delete_ratio = atof(getCmdOption(argv, argv + argc, "-delete_ratio"));
+  if (cmdOptionExists(argv, argc + argv, "-search_exist_ratio"))
+    search_exist_ratio =
+        atof(getCmdOption(argv, argv + argc, "-search_exist_ratio"));
+  if (cmdOptionExists(argv, argc + argv, "-lf_conc_step"))
+    lf_conc_step = atof(getCmdOption(argv, argv + argc, "-lf_conc_step"));
+  if (cmdOptionExists(argv, argc + argv, "-lf_conc_num_sample"))
+    lf_conc_num_sample =
+        atoi(getCmdOption(argv, argv + argc, "-lf_conc_num_sample"));
+  // if (cmdOptionExists(argv, argc + argv, "-num_batch"))
+  //   init_batches = atoi(getCmdOption(argv, argv + argc, "-num_batch"));
   // if (cmdOptionExists(argv, argc + argv, "-nSample"))
   //   num_samples = atoi(getCmdOption(argv, argv + argc, "-nSample"));
   // if (cmdOptionExists(argv, argc + argv, "-dStep"))
@@ -157,17 +183,18 @@ int main(int argc, char** argv) {
                                                 0.1f);
       break;
     case 2:  // bulk build, load factor fixed, num elements changing
-      build_search_bulk_experiment<KeyT, ValueT>(1 << n_start,
-                                       1 << n_end,
-                                       filename,
-                                       expected_chain,
-                                       existing_ratio,
-                                       device_idx,
-                                       num_iter,
-                                       /* run_cudpp = */false,
-                                       /* verbose = */verbose);
+      build_search_bulk_experiment<KeyT, ValueT>(
+          1 << n_start, 1 << n_end, filename, expected_chain, existing_ratio,
+          device_idx, num_iter,
+          /* run_cudpp = */ false,
+          /* verbose = */ verbose);
       break;
-    case 3:  // concurrent experiment
+    case 3:  // concurrent experiment:
+      concurrent_batched_op_load_factor_experiment<KeyT, ValueT>(
+          /*max_num_keys = */ 1 << n_end, /*batch_size = */ 1 << n_start,
+          num_batch, init_batch, insert_ratio, delete_ratio, search_exist_ratio,
+          filename, device_idx, lf_conc_step, lf_conc_num_sample, num_iter,
+          verbose);
       break;
     default:
       std::cout << "Error: invalid mode." << std::endl;
