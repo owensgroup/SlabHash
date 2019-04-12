@@ -108,7 +108,7 @@ def analyze_concurrent_experiment(input_file):
 def main(argv):
 	input_file = ''
 	try:
-		opts, args = getopt.getopt(argv, "hi:m:", ["help", "ifile=", "mode="])
+		opts, args = getopt.getopt(argv, "hi:m:d:", ["help", "ifile=", "mode=", "device="])
 	except getopt.GetOptError:
 		print("bencher.py -i <inputfile>")
 		sys.exit(2)
@@ -122,8 +122,10 @@ def main(argv):
 				input_file = arg
 			if opt in ("-m", "--mode"):
 				mode = int(arg)
+			if opt in ("-d", "--device"):
+				device_idx = int(arg)
 
-		print(" === " + input_file)
+		print(" result file: " + input_file)
 	# if the input file is not given, proper experiments should be run first
 	if not input_file:		
 		# == creating a folder to store results
@@ -151,6 +153,7 @@ def main(argv):
 			args = (bin_file, "-mode", str(mode), 
 				"-num_key", str(2**22),
 				"-expected_chain", str(0.6),
+				"-device", str(device_idx),
 				"-filename", out_file_dest)
 		elif mode == 1:
 			args = (bin_file, "-mode", str(mode), "-filename", out_file_dest)
@@ -160,6 +163,7 @@ def main(argv):
 				"-nEnd", str(23), 
 				"-expected_chain", str(0.6),
 				"-query_ratio", str(1.0),
+				"-device", str(device_idx),
 				"-filename", out_file_dest)
 		elif mode == 3:
 			args = (bin_file, "-mode", str(mode),
@@ -168,7 +172,8 @@ def main(argv):
 			"-num_batch", str(4),
 			"-init_batch", str(3),
 			"-lf_conc_step", str(0.1),
-			"-lf_conc_num_sample", str(10),  
+			"-lf_conc_num_sample", str(10),
+			"-device", str(device_idx), 
 			"-filename", out_file_dest)
 
 		print(" === Started benchmarking ... ")

@@ -97,8 +97,8 @@ int main(int argc, char** argv) {
   std::mt19937 rng(seed);
   std::shuffle(h_key.begin(), h_key.end(), rng);
 
-  gpu_hash_table<KeyT, KeyT, DEVICE_ID, SlabHashTypeT::ConcurrentSet>
-      hash_table(num_keys, num_buckets, seed, false, /*identity_hash*/ true);
+  gpu_hash_table<KeyT, KeyT, SlabHashTypeT::ConcurrentSet>
+      hash_table(num_keys, num_buckets, DEVICE_ID, seed, false, /*identity_hash*/ true);
 
   float build_time = hash_table.hash_build(h_key.data(), nullptr, num_keys);
 

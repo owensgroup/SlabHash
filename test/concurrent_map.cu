@@ -98,8 +98,8 @@ int main(int argc, char** argv) {
     std::swap(h_query[i], h_query[q_index[i]]);
     std::swap(h_correct_result[i], h_correct_result[q_index[i]]);
   }
-  gpu_hash_table<KeyT, ValueT, DEVICE_ID, SlabHashTypeT::ConcurrentMap>
-      hash_table(num_keys, num_buckets, seed);
+  gpu_hash_table<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>
+      hash_table(num_keys, num_buckets, DEVICE_ID, seed);
 
   float build_time =
       hash_table.hash_build(h_key.data(), h_value.data(), num_keys);
@@ -147,11 +147,4 @@ int main(int argc, char** argv) {
   // (%.2f) in %.3f ms (%.3f M elements/s)\n", existing_ratio,
   // cudpp_search_time, double(num_queries)/cudpp_search_time/1000.0);
   //	===
-
-  // delete[] h_key;
-  // delete[] h_value;
-  // delete[] h_result;
-  // delete[] h_correct_result;
-  // delete[] h_query;
-  // delete gpu_hash_table_ptr;
 }

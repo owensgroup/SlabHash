@@ -112,8 +112,8 @@ void load_factor_bulk_experiment(uint32_t num_keys,
       }
 
       // building the hash table:
-      gpu_hash_table<KeyT, ValueT, DEVICE_ID, SlabHashTypeT::ConcurrentMap>
-          hash_table(num_keys, num_buckets, time(nullptr));
+      gpu_hash_table<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>
+          hash_table(num_keys, num_buckets, device_idx, time(nullptr));
 
       float build_time = hash_table.hash_build(h_key, h_value, num_keys);
 
@@ -266,8 +266,8 @@ void singleton_experiment(uint32_t num_keys,
     }
 
     // building the hash table:
-    gpu_hash_table<KeyT, ValueT, DEVICE_ID, SlabHashTypeT::ConcurrentMap>
-        hash_table(num_keys, num_buckets, time(nullptr));
+    gpu_hash_table<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>
+        hash_table(num_keys, num_buckets, device_idx, time(nullptr));
 
     float build_time = hash_table.hash_build(h_key, h_value, num_keys);
 
@@ -434,8 +434,8 @@ void build_search_bulk_experiment(uint32_t num_keys_start,
 
     for (int iter = 0; iter < num_iter; iter++) {
       // building the hash table:
-      gpu_hash_table<KeyT, ValueT, DEVICE_ID, SlabHashTypeT::ConcurrentMap>
-          hash_table(num_keys, num_buckets, time(nullptr));
+      gpu_hash_table<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>
+          hash_table(num_keys, num_buckets, device_idx, time(nullptr));
 
       build_time += hash_table.hash_build(h_key, h_value, num_keys);
 
@@ -597,8 +597,8 @@ void concurrent_batched_op_load_factor_experiment(uint32_t max_key_num,
     // building the hash table:
     for (int iter = 0; iter < num_iter; iter++) {
       // building the hash table:
-      gpu_hash_table<KeyT, ValueT, DEVICE_ID, SlabHashTypeT::ConcurrentMap>
-          hash_table(num_keys, num_buckets, time(nullptr));
+      gpu_hash_table<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>
+          hash_table(num_keys, num_buckets, device_idx, time(nullptr));
 
       BatchedDataGen key_gen(max_key_num, batch_size);
       key_gen.generate_random_keys(std::time(nullptr), /*num_msb = */ 2,

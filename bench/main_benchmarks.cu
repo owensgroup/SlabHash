@@ -24,8 +24,6 @@
 #include <sstream>
 #include <string>
 
-#define DEVICE_ID 0  // todo: change this into a paramater
-
 #include "experiments.cuh"
 //
 inline char* getCmdOption(char** begin, char** end, const std::string& option) {
@@ -161,8 +159,8 @@ int main(int argc, char** argv) {
   cudaGetDeviceCount(&devCount);
   cudaDeviceProp devProp;
   if (devCount) {
-    cudaSetDevice(DEVICE_ID);  // be changed later
-    cudaGetDeviceProperties(&devProp, DEVICE_ID);
+    cudaSetDevice(device_idx);  // be changed later
+    cudaGetDeviceProperties(&devProp, device_idx);
   }
   printf("Device: %s\n", devProp.name);
   printf(" == mode  = %d\n", mode);
@@ -179,7 +177,7 @@ int main(int argc, char** argv) {
       break;
     case 1:  // bulk build, num elements fixed, load factor changing
       load_factor_bulk_experiment<KeyT, ValueT>(num_keys, num_queries, filename,
-                                                /*device_idx = */ 0, false, 10,
+                                                device_idx, false, 10,
                                                 0.1f);
       break;
     case 2:  // bulk build, load factor fixed, num elements changing

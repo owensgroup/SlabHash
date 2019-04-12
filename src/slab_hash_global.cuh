@@ -122,7 +122,6 @@ class PhaseConcurrentMapT {
 // the main class to be specialized for different types of hash tables
 template <typename KeyT,
           typename ValueT,
-          uint32_t DEVICE_IDX,
           SlabHashTypeT SlabHashT>
 class GpuSlabHash;
 

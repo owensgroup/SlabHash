@@ -93,8 +93,8 @@ int main(int argc, char** argv) {
     std::swap(h_query[i], h_query[q_index[i]]);
     std::swap(h_correct_result[i], h_correct_result[q_index[i]]);
   }
-  gpu_hash_table<KeyT, KeyT, DEVICE_ID, SlabHashTypeT::ConcurrentSet>
-      hash_table(num_keys, num_buckets, seed, false);
+  gpu_hash_table<KeyT, KeyT, SlabHashTypeT::ConcurrentSet>
+      hash_table(num_keys, num_buckets, DEVICE_ID, seed, false);
 
   float build_time =
       hash_table.hash_build(h_key.data(), nullptr, num_keys);
@@ -130,11 +130,4 @@ int main(int argc, char** argv) {
     if (i == (num_queries - 1))
       printf("Validation done successfully\n");
   }
-
-  // delete[] h_key;
-  // delete[] h_value;
-  // delete[] h_result;
-  // delete[] h_correct_result;
-  // delete[] h_query;
-  // delete gpu_hash_table_ptr;
 }

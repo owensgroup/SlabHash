@@ -144,8 +144,8 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
 /*
  * This class owns the allocated memory for the hash table
  */
-template <typename KeyT, typename ValueT, uint32_t DEVICE_IDX>
-class GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashTypeT::ConcurrentMap> {
+template <typename KeyT, typename ValueT>
+class GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
  private:
   // fixed known parameters:
   static constexpr uint32_t BLOCKSIZE_ = 128;
@@ -172,23 +172,26 @@ class GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashTypeT::ConcurrentMap> {
   // const pointer to an allocator that all instances of slab hash are going to
   // use. The allocator itself is not owned by this class
   DynamicAllocatorT* dynamic_allocator_;
+  uint32_t device_idx_;
 
  public:
   GpuSlabHash(const uint32_t num_buckets,
               DynamicAllocatorT* dynamic_allocator,
+              uint32_t device_idx,
               const time_t seed = 0, 
               const bool identity_hash = false)
       : num_buckets_(num_buckets),
         d_table_(nullptr),
         slab_unit_size_(0),
-        dynamic_allocator_(dynamic_allocator) {
+        dynamic_allocator_(dynamic_allocator),
+        device_idx_(device_idx) {
     assert(dynamic_allocator &&
            "No proper dynamic allocator attached to the slab hash.");
     int32_t devCount = 0;
     CHECK_CUDA_ERROR(cudaGetDeviceCount(&devCount));
-    assert(DEVICE_IDX < devCount);
+    assert(device_idx_ < devCount);
 
-    CHECK_CUDA_ERROR(cudaSetDevice(DEVICE_IDX));
+    CHECK_CUDA_ERROR(cudaSetDevice(device_idx_));
 
     slab_unit_size_ =
         GpuSlabHashContext<KeyT, ValueT,
@@ -218,7 +221,7 @@ class GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashTypeT::ConcurrentMap> {
   }
 
   ~GpuSlabHash() {
-    CHECK_CUDA_ERROR(cudaSetDevice(DEVICE_IDX));
+    CHECK_CUDA_ERROR(cudaSetDevice(device_idx_));
     CHECK_CUDA_ERROR(cudaFree(d_table_));
   }
 
