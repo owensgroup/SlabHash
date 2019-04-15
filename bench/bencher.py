@@ -4,12 +4,11 @@ import os
 import json 
 import sys 
 import getopt
-# import matplotlib.pyplot as plt 
 
 def analyze_singleton_experiment(input_file):
 	with open(input_file) as json_file:
 		data = json.load(json_file)
-		print(data["slab_hash"]['device_name'])
+		print("GPU hardware: %s" % (data["slab_hash"]['device_name']))
 		trials = data["slab_hash"]["trial"]
 
 		for trial in trials:
@@ -31,34 +30,33 @@ def analyze_singleton_experiment(input_file):
 def analyze_load_factor_experiment(input_file):
 	with open(input_file) as json_file:
 		data = json.load(json_file)
-		print(data["slab_hash"]['device_name'])
+		print("GPU hardware: %s" % (data["slab_hash"]['device_name']))
 		trials = data["slab_hash"]["trial"]
 
-		tabular_data_q0 = []
-		tabular_data_q1 = []
+		tabular_data = []
 
 		for trial in trials:
-			if( abs(trial["query_ratio"]) < 0.000001):
-				tabular_data_q0.append((trial["load_factor"], trial["build_rate_mps"], trial["search_rate_mps"], trial["search_rate_bulk_mps"]))
-			elif abs(trial["query_ratio"] - 1.0) < 0.000001:
-				tabular_data_q1.append((trial["load_factor"], trial["build_rate_mps"], trial["search_rate_mps"], trial["search_rate_bulk_mps"]))
+			tabular_data.append((trial["load_factor"], 
+				trial["build_rate_mps"], 
+				trial["search_rate_mps"], 
+				trial["search_rate_bulk_mps"], 
+				trial['num_buckets']))
 
-		tabular_data_q0.sort()
-		print("Experiments when none of the queries exist:")
-		print("load factor\tbuild rate(M/s)\t\tsearch rate(M/s)\tsearch rate bulk(M/s)")
-		for pair in tabular_data_q0:
-			print("%.2f\t\t%.3f\t\t%.3f\t\t%.3f" % (pair[0], pair[1], pair[2], pair[3]))		
-
-		tabular_data_q1.sort()
-		print("Experiments when all of the queries exist:")
-		print("load factor\tbuild rate(M/s)\t\tsearch rate(M/s)\tsearch rate bulk(M/s)")
-		for pair in tabular_data_q1:
-			print("%.2f\t\t%.3f\t\t%.3f\t\t%.3f" % (pair[0], pair[1], pair[2], pair[3]))
+		tabular_data.sort()
+		print("===============================================================================================")
+		print("Load factor experiment:")
+		print("\tTotal number of elements is fixed, load factor (number of buckets) is a variable")
+		print("\tNumber of elements to be inserted: %d" % (trials[0]['num_keys']))
+		print("===============================================================================================")
+		print("load factor\tnum buckets\tbuild rate(M/s)\t\tsearch rate(M/s)\tsearch rate bulk(M/s)")
+		print("===============================================================================================")
+		for pair in tabular_data:
+			print("%.2f\t\t%d\t\t%.3f\t\t%.3f\t\t%.3f" % (pair[0], pair[4], pair[1], pair[2], pair[3]))		
 
 def analyze_table_size_experiment(input_file):
 	with open(input_file) as json_file:
 		data = json.load(json_file)
-		print(data["slab_hash"]['device_name'])
+		print("GPU hardware: %s" % (data["slab_hash"]['device_name']))
 		trials = data["slab_hash"]["trial"]
 
 		tabular_data = []
@@ -72,7 +70,6 @@ def analyze_table_size_experiment(input_file):
 				trial["search_rate_bulk_mps"]))
 
 		tabular_data.sort()
-		# print("Experiments when %.2f\% of the queries exist:" % (tabular_data[0][2]))
 		print("num keys\tbuild rate(M/s)\t\tsearch rate(M/s)\tsearch rate bulk(M/s)")
 		for pair in tabular_data:
 			print("%d\t\t%.3f\t\t%.3f\t\t%.3f" % (pair[0], pair[3], pair[4], pair[5]))

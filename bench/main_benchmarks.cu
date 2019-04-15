@@ -41,16 +41,14 @@ inline bool cmdOptionExists(char** begin,
 }
 
 int main(int argc, char** argv) {
-  int mode = 0;
+  int mode = 0;  // type of experiment
   uint32_t num_iter = 1;
   uint32_t n_start = 20;  // num_keys_start = 1 << n_start;
   uint32_t n_end = 20;    // num_keys_start = 1 << n_start;
-  // int num_samples = 10;
-  // float d_steps = 0.1f;
   uint32_t num_keys = (1 << 22);
   uint32_t num_queries = num_keys;
   float expected_chain = 0.6f;
-  float existing_ratio = 0.0f;
+  float existing_ratio = 1.0f;
   int num_batch = 2;
   int init_batch = 1;
 
@@ -92,8 +90,6 @@ int main(int argc, char** argv) {
 
   if (cmdOptionExists(argv, argc + argv, "-device"))
     device_idx = atoi(getCmdOption(argv, argv + argc, "-device"));
-  // if (cmdOptionExists(argv, argc + argv, "-buckets"))
-  //   buckets = atoi(getCmdOption(argv, argv + argc, "-buckets"));
   if (cmdOptionExists(argv, argc + argv, "-iter")) {
     num_iter = atoi(getCmdOption(argv, argv + argc, "-iter"));
   }
@@ -124,20 +120,6 @@ int main(int argc, char** argv) {
   if (cmdOptionExists(argv, argc + argv, "-lf_conc_num_sample"))
     lf_conc_num_sample =
         atoi(getCmdOption(argv, argv + argc, "-lf_conc_num_sample"));
-  // if (cmdOptionExists(argv, argc + argv, "-num_batch"))
-  //   init_batches = atoi(getCmdOption(argv, argv + argc, "-num_batch"));
-  // if (cmdOptionExists(argv, argc + argv, "-nSample"))
-  //   num_samples = atoi(getCmdOption(argv, argv + argc, "-nSample"));
-  // if (cmdOptionExists(argv, argc + argv, "-dStep"))
-  //   d_steps = atof(getCmdOption(argv, argv + argc, "-dStep"));
-  // if (cmdOptionExists(argv, argc + argv, "-alpha"))
-  //   alpha = atof(getCmdOption(argv, argv + argc, "-alpha"));
-  // if (cmdOptionExists(argv, argc + argv, "-update"))
-  //   a_update = float(atoi(getCmdOption(argv, argv + argc, "-update"))) /
-  //   100.0f;
-  // if (cmdOptionExists(argv, argc + argv, "-search"))
-  //   c_search = float(atoi(getCmdOption(argv, argv + argc, "-search"))) /
-  //   100.0f;
 
   // input argument for the file to be used for storing the results
   std::string filename("");
@@ -163,7 +145,7 @@ int main(int argc, char** argv) {
     cudaGetDeviceProperties(&devProp, device_idx);
   }
   printf("Device: %s\n", devProp.name);
-  printf(" == mode  = %d\n", mode);
+  printf("Experiment mode = %d\n", mode);
 
   using KeyT = uint32_t;
   using ValueT = uint32_t;
@@ -177,8 +159,8 @@ int main(int argc, char** argv) {
       break;
     case 1:  // bulk build, num elements fixed, load factor changing
       load_factor_bulk_experiment<KeyT, ValueT>(num_keys, num_queries, filename,
-                                                device_idx, false, 10,
-                                                0.1f);
+                                                device_idx, existing_ratio,
+                                                num_iter, false, 10, 0.1f);
       break;
     case 2:  // bulk build, load factor fixed, num elements changing
       build_search_bulk_experiment<KeyT, ValueT>(

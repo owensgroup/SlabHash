@@ -36,6 +36,8 @@ void load_factor_bulk_experiment(uint32_t num_keys,
                                  uint32_t num_queries,
                                  std::string filename,
                                  uint32_t device_idx,
+                                 float query_ratio,
+                                 uint32_t num_iter = 1, 
                                  bool run_cudpp = false,
                                  int num_sample_lf = 10,
                                  float steps = 0.1f,
@@ -67,7 +69,7 @@ void load_factor_bulk_experiment(uint32_t num_keys,
   // === generating random key-values
   BatchedDataGen key_gen(num_keys + num_queries, num_keys + num_queries);
   key_gen.generate_random_keys(std::time(nullptr), /*num_msb = */ 0, true);
-  auto f = [](uint32_t key) { return 10 * key; };
+  auto f = [](uint32_t key) { return ~key; };
 
   std::vector<float> expected_chain_list(num_sample_lf);
   expected_chain_list[0] = 0.1f;
@@ -77,7 +79,6 @@ void load_factor_bulk_experiment(uint32_t num_keys,
 
   // query ratios to be tested against (fraction of queries that actually exist
   // in the data structure):
-  std::vector<float> query_ratio_list{0.0f, 1.0f};
 
   uint32_t experiment_id = 0;
 
@@ -96,29 +97,33 @@ void load_factor_bulk_experiment(uint32_t num_keys,
       // float cudpp_build_time = cudpp_hash.hash_build();
     }
 
-    for (auto query_ratio : query_ratio_list) {
-      // === generating random queries with a fixed ratio existing in keys
-      uint32_t num_existing = static_cast<uint32_t>(query_ratio * num_queries);
-      auto buffer_ptr =
-          key_gen.getSingleBatchPointer(num_keys, num_queries, num_existing);
+    // === generating random queries with a fixed ratio existing in keys
+    uint32_t num_existing = static_cast<uint32_t>(query_ratio * num_queries);
+    auto buffer_ptr =
+        key_gen.getSingleBatchPointer(num_keys, num_queries, num_existing);
 
-      for (int i = 0; i < num_keys; i++) {
-        h_key[i] = buffer_ptr[i];
-        h_value[i] = f(h_key[i]);
-      }
+    for (int i = 0; i < num_keys; i++) {
+      h_key[i] = buffer_ptr[i];
+      h_value[i] = f(h_key[i]);
+    }
 
-      for (int i = 0; i < num_queries; i++) {
-        h_query[i] = buffer_ptr[num_keys + i];
-      }
+    for (int i = 0; i < num_queries; i++) {
+      h_query[i] = buffer_ptr[num_keys + i];
+    }
 
+    float build_time = 0.0f;
+    float search_time = 0.0f;
+    float search_time_bulk = 0.0f;
+    double load_factor = 0.0;
+    for (int iter = 0; iter < num_iter; iter++) {
       // building the hash table:
-      gpu_hash_table<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>
-          hash_table(num_keys, num_buckets, device_idx, time(nullptr));
+      gpu_hash_table<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> hash_table(
+          num_keys, num_buckets, device_idx, time(nullptr));
 
-      float build_time = hash_table.hash_build(h_key, h_value, num_keys);
+      build_time += hash_table.hash_build(h_key, h_value, num_keys);
 
       // measuring the exact load factor in slab hash
-      double load_factor = hash_table.measureLoadFactor();
+      load_factor += hash_table.measureLoadFactor();
 
       if (verbose) {
         printf(
@@ -128,9 +133,8 @@ void load_factor_bulk_experiment(uint32_t num_keys,
             double(num_keys) / build_time / 1000.0);
       }
       // performing the queries:
-      float search_time =
-          hash_table.hash_search(h_query, h_result, num_queries);
-      float search_time_bulk =
+      search_time += hash_table.hash_search(h_query, h_result, num_queries);
+      search_time_bulk +=
           hash_table.hash_search_bulk(h_query, h_result, num_queries);
 
       // CUDPP hash table:
@@ -138,44 +142,49 @@ void load_factor_bulk_experiment(uint32_t num_keys,
         // float cudpp_search_time =
         //     cudpp_hash.lookup_hash_table(h_query, num_queries);
       }
-
-      rapidjson::Value object(rapidjson::kObjectType);
-      object.AddMember("id", rapidjson::Value().SetInt(experiment_id++),
-                       doc.GetAllocator());
-      object.AddMember("num_keys", rapidjson::Value().SetInt(num_keys),
-                       doc.GetAllocator());
-      object.AddMember("num_queries", rapidjson::Value().SetInt(num_queries),
-                       doc.GetAllocator());
-      object.AddMember("build_time_ms",
-                       rapidjson::Value().SetDouble(build_time),
-                       doc.GetAllocator());
-      object.AddMember(
-          "build_rate_mps",
-          rapidjson::Value().SetDouble(double(num_keys) / build_time / 1000.0),
-          doc.GetAllocator());
-      object.AddMember("search_time_bulk_ms",
-                       rapidjson::Value().SetDouble(search_time_bulk),
-                       doc.GetAllocator());
-      object.AddMember("search_rate_bulk_mps",
-                       rapidjson::Value().SetDouble(double(num_queries) /
-                                                    search_time_bulk / 1000.0),
-                       doc.GetAllocator());
-      object.AddMember("search_time_ms",
-                       rapidjson::Value().SetDouble(search_time),
-                       doc.GetAllocator());
-      object.AddMember("search_rate_mps",
-                       rapidjson::Value().SetDouble(double(num_queries) /
-                                                    search_time / 1000.0),
-                       doc.GetAllocator());
-      object.AddMember("query_ratio", rapidjson::Value().SetDouble(query_ratio),
-                       doc.GetAllocator());
-      object.AddMember("load_factor", rapidjson::Value().SetDouble(load_factor),
-                       doc.GetAllocator());
-      object.AddMember("exp_chain_length",
-                       rapidjson::Value().SetDouble(expected_chain),
-                       doc.GetAllocator());
-      object_array.PushBack(object, doc.GetAllocator());
     }
+    build_time /= num_iter;
+    search_time /= num_iter;
+    search_time_bulk /= num_iter;
+    load_factor /= num_iter;
+
+    rapidjson::Value object(rapidjson::kObjectType);
+    object.AddMember("id", rapidjson::Value().SetInt(experiment_id++),
+                     doc.GetAllocator());
+    object.AddMember("num_keys", rapidjson::Value().SetInt(num_keys),
+                     doc.GetAllocator());
+    object.AddMember("num_buckets", rapidjson::Value().SetInt(num_buckets),
+                     doc.GetAllocator());
+    object.AddMember("num_queries", rapidjson::Value().SetInt(num_queries),
+                     doc.GetAllocator());
+    object.AddMember("build_time_ms", rapidjson::Value().SetDouble(build_time),
+                     doc.GetAllocator());
+    object.AddMember(
+        "build_rate_mps",
+        rapidjson::Value().SetDouble(double(num_keys) / build_time / 1000.0),
+        doc.GetAllocator());
+    object.AddMember("search_time_bulk_ms",
+                     rapidjson::Value().SetDouble(search_time_bulk),
+                     doc.GetAllocator());
+    object.AddMember("search_rate_bulk_mps",
+                     rapidjson::Value().SetDouble(double(num_queries) /
+                                                  search_time_bulk / 1000.0),
+                     doc.GetAllocator());
+    object.AddMember("search_time_ms",
+                     rapidjson::Value().SetDouble(search_time),
+                     doc.GetAllocator());
+    object.AddMember("search_rate_mps",
+                     rapidjson::Value().SetDouble(double(num_queries) /
+                                                  search_time / 1000.0),
+                     doc.GetAllocator());
+    object.AddMember("query_ratio", rapidjson::Value().SetDouble(query_ratio),
+                     doc.GetAllocator());
+    object.AddMember("load_factor", rapidjson::Value().SetDouble(load_factor),
+                     doc.GetAllocator());
+    object.AddMember("exp_chain_length",
+                     rapidjson::Value().SetDouble(expected_chain),
+                     doc.GetAllocator());
+    object_array.PushBack(object, doc.GetAllocator());
   }
 
   // adding the array of objects into the document:
@@ -266,8 +275,8 @@ void singleton_experiment(uint32_t num_keys,
     }
 
     // building the hash table:
-    gpu_hash_table<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>
-        hash_table(num_keys, num_buckets, device_idx, time(nullptr));
+    gpu_hash_table<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> hash_table(
+        num_keys, num_buckets, device_idx, time(nullptr));
 
     float build_time = hash_table.hash_build(h_key, h_value, num_keys);
 
@@ -434,8 +443,8 @@ void build_search_bulk_experiment(uint32_t num_keys_start,
 
     for (int iter = 0; iter < num_iter; iter++) {
       // building the hash table:
-      gpu_hash_table<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>
-          hash_table(num_keys, num_buckets, device_idx, time(nullptr));
+      gpu_hash_table<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> hash_table(
+          num_keys, num_buckets, device_idx, time(nullptr));
 
       build_time += hash_table.hash_build(h_key, h_value, num_keys);
 
@@ -597,8 +606,8 @@ void concurrent_batched_op_load_factor_experiment(uint32_t max_key_num,
     // building the hash table:
     for (int iter = 0; iter < num_iter; iter++) {
       // building the hash table:
-      gpu_hash_table<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>
-          hash_table(num_keys, num_buckets, device_idx, time(nullptr));
+      gpu_hash_table<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> hash_table(
+          num_keys, num_buckets, device_idx, time(nullptr));
 
       BatchedDataGen key_gen(max_key_num, batch_size);
       key_gen.generate_random_keys(std::time(nullptr), /*num_msb = */ 2,
