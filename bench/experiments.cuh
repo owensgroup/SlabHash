@@ -249,7 +249,7 @@ void singleton_experiment(uint32_t num_keys,
   // === generating random key-values
   BatchedDataGen key_gen(num_keys + num_queries, num_keys + num_queries);
   key_gen.generate_random_keys(std::time(nullptr), /*num_msb = */ 0, true);
-  auto f = [](uint32_t key) { return 10 * key; };
+  auto f = [](uint32_t key) { return ~key; };
 
   const uint32_t expected_elements_per_bucket =
       expected_chain_length * num_elements_per_unit;
