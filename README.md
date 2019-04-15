@@ -1,21 +1,21 @@
 # SlabHash
 A warp-oriented dynamic hash table for GPUs
 
-##Publication:
+## Publication:
 This library is based on the original slab hash paper, initially proposed in the following IPDPS'18 paper:
 * [Saman Ashkiani, Martin Farach-Colton, John Owens, *A Dynamic Hash Table for the GPU*, 2018 IEEE International Parallel and Distributed Processing Symposium (IPDPS)](https://ieeexplore.ieee.org/abstract/document/8425196)
 
 This library is a rafactored and slightly redesigned version of the original code, so that it can be extended and be used in other research projects as well. It is still under continuous development. If you find any problem with the code, or suggestions for potential additions to the library, we will appreciate it if you can raise issues on github. We will address them as soon as possible. 
 
-##Compilation
+## Compilation
 1. `git submodule init`
 2. `git submodule update`
 3. Make sure to edit `CMakeLists.txt` such that it reflects the GPU device's compute capability. For example, to include compute 3.5 you should have `option(SLABHASH_GENCODE_SM35 "GENCODE_SM35" ON)`.
 4. `mkdir build && cd build`
 5. `cmake ..`
-6. 'make'
+6. `make`
 
-##Simple benchmarking
+## Simple benchmarking
 A simplified set of benchmark scenarios are available through a Python API that can be used as follows: Once the code is successfully compiled you can run the following python code from the `build` directory: `python3 ../bench/bencher.py -m <experiment mode> -d <device index>`, where experiment mode and device to be used are chosen. So far, the following experiments are added:
 
 * mode 0: singleton experiment, where the hash table is built given a fixed load factor (which set by using a parameter for expected chain length, or equivalently total number of initial buckets).
