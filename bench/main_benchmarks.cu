@@ -43,31 +43,27 @@ inline bool cmdOptionExists(char** begin,
 int main(int argc, char** argv) {
   int mode = 0;  // type of experiment
   uint32_t num_iter = 1;
-  uint32_t n_start = 20;  // num_keys_start = 1 << n_start;
-  uint32_t n_end = 20;    // num_keys_start = 1 << n_start;
+  bool verbose = false;
+  int device_idx = 0;
   uint32_t num_keys = (1 << 22);
+  uint32_t n_start = 20;  // num_keys = 1 << n_start;
+  uint32_t n_end = 20;
   uint32_t num_queries = num_keys;
   float expected_chain = 0.6f;
   float existing_ratio = 1.0f;
-  int num_batch = 2;
-  int init_batch = 1;
 
-  bool verbose = false;
-  int device_idx = 0;
+  // mode 1 parameters:
+  float lf_bulk_step = 0.1f;
+  uint32_t lf_bulk_num_sample = 10;
 
   // mode 3 parameters:
+  int num_batch = 2;
+  int init_batch = 1;
   float insert_ratio = 0.1f;
   float delete_ratio = 0.1f;
   float search_exist_ratio = 0.4f;
   float lf_conc_step = 0.1f;
   int lf_conc_num_sample = 10;
-  // float alpha = 1.0f;
-  // // for mode 5:
-  // uint32_t buckets = 1;
-  // float a_update = 1.0f;
-  // float c_search = 0.0f;
-
-  // uint32_t init_batches = 1;
 
   if (cmdOptionExists(argv, argc + argv, "-mode"))
     mode = atoi(getCmdOption(argv, argv + argc, "-mode"));
@@ -85,7 +81,7 @@ int main(int argc, char** argv) {
   if (cmdOptionExists(argv, argc + argv, "-query_ratio"))
     existing_ratio = atof(getCmdOption(argv, argv + argc, "-query_ratio"));
   if (cmdOptionExists(argv, argc + argv, "-verbose")) {
-    verbose = true;
+    verbose = (atoi(getCmdOption(argv, argv + argc, "-verbose")) != 0) ? true : false;
   }
 
   if (cmdOptionExists(argv, argc + argv, "-device"))
@@ -120,6 +116,11 @@ int main(int argc, char** argv) {
   if (cmdOptionExists(argv, argc + argv, "-lf_conc_num_sample"))
     lf_conc_num_sample =
         atoi(getCmdOption(argv, argv + argc, "-lf_conc_num_sample"));
+  if (cmdOptionExists(argv, argc + argv, "-lf_bulk_step"))
+    lf_bulk_step = atof(getCmdOption(argv, argv + argc, "-lf_bulk_step"));
+  if (cmdOptionExists(argv, argc + argv, "-lf_bulk_num_sample"))
+    lf_bulk_num_sample =
+        atoi(getCmdOption(argv, argv + argc, "-lf_bulk_num_sample"));
 
   // input argument for the file to be used for storing the results
   std::string filename("");
@@ -159,9 +160,9 @@ int main(int argc, char** argv) {
                                          /*run_cudpp = */ false, verbose);
       break;
     case 1:  // bulk build, num elements fixed, load factor changing
-      load_factor_bulk_experiment<KeyT, ValueT>(num_keys, num_queries, filename,
-                                                device_idx, existing_ratio,
-                                                num_iter, false, 10, 0.1f);
+      load_factor_bulk_experiment<KeyT, ValueT>(
+          num_keys, num_queries, filename, device_idx, existing_ratio, num_iter,
+          false, lf_bulk_num_sample, lf_bulk_step);
       break;
     case 2:  // bulk build, load factor fixed, num elements changing
       build_search_bulk_experiment<KeyT, ValueT>(

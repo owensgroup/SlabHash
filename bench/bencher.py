@@ -110,24 +110,36 @@ def analyze_concurrent_experiment(input_file):
 def main(argv):
 	input_file = ''
 	try:
-		opts, args = getopt.getopt(argv, "hi:m:d:", ["help", "ifile=", "mode=", "device="])
+		opts, args = getopt.getopt(argv, "hvi:m:d:", ["help", "verbose", "ifile=", "mode=", "device="])
 	except getopt.GetOptError:
-		print("bencher.py -i <inputfile> -m <experiment mode> -d <device index>")
+		print("bencher.py -i <inputfile> -m <experiment mode> -d <device index> -v")
 		sys.exit(2)
 	
 	for opt, arg in opts:
 		if opt == '-h':
-			print("bencher.py -i <inputfile>")
+			print("===============================================================================================")
+			print("-i/--ifile: 	\t\t Input file (optional)")
+			print("-m/--mode: 	\t\t Experiment mode:")
+			print("\t\t\t\t\t 0: singleton experiment")
+			print("\t\t\t\t\t 1: load factor experiment")
+			print("\t\t\t\t\t 2: variable sized table experiment")
+			print("\t\t\t\t\t 3: concurrent experiment")
+			print("-v/--verbose")
+			print("===============================================================================================")
 			sys.exit()
 		else:
 			if opt in ("-i", "--ifile"):
 				input_file = arg
+				print("input file: " + input_file)
 			if opt in ("-m", "--mode"):
 				mode = int(arg)
 			if opt in ("-d", "--device"):
 				device_idx = int(arg)
-
-		print(" result file: " + input_file)
+			if opt in ("-v", "--verbose"):
+				verbose = True
+			else:
+				verbose =  False
+	
 	# if the input file is not given, proper experiments should be run first
 	if not input_file:		
 		# == creating a folder to store results
@@ -148,7 +160,7 @@ def main(argv):
 
 		out_file_dest = out_directory + out_file_name + ".json"
 		input_file = out_file_dest # input file for the next step
-		print(" == filename = " + out_file_dest)
+		print("intermediate results stored at: " + out_file_dest)
 
 		print("mode = %d" % mode)
 		if mode == 0:
@@ -156,17 +168,27 @@ def main(argv):
 				"-num_key", str(2**22),
 				"-expected_chain", str(0.6),
 				"-device", str(device_idx),
-				"-filename", out_file_dest)
+				"-filename", out_file_dest,
+				"-verbose", "1" if verbose else "0")
 		elif mode == 1:
-			args = (bin_file, "-mode", str(mode), "-filename", out_file_dest)
+			args = (bin_file, 
+				"-mode", str(mode),
+				"-num_keys", str(2**22),
+				"-quary_ratio", str(1.0),
+				"-device", str(device_idx),
+				"-lf_bulk_step", str(0.1),
+				"-lf_bulk_num_sample", str(20), 
+				"-filename", out_file_dest,
+				"-verbose", "1" if verbose else "0")
 		elif mode == 2:
 				args = (bin_file, "-mode", str(mode), 
-				"-nStart", str(18),
+				"-nStart", str(18), 
 				"-nEnd", str(23), 
 				"-expected_chain", str(0.6),
 				"-query_ratio", str(1.0),
 				"-device", str(device_idx),
-				"-filename", out_file_dest)
+				"-filename", out_file_dest,
+				"-verbose", "1" if verbose else "0")
 		elif mode == 3:
 			args = (bin_file, "-mode", str(mode),
 			"-nStart", str(18),
@@ -176,15 +198,17 @@ def main(argv):
 			"-lf_conc_step", str(0.1),
 			"-lf_conc_num_sample", str(10),
 			"-device", str(device_idx), 
-			"-filename", out_file_dest)
+			"-filename", out_file_dest,
+			"-verbose", "1" if verbose else "0")
 
 		print(" === Started benchmarking ... ")
 
 		popen = subprocess.Popen(args, stdout = subprocess.PIPE)
 		popen.wait()
 
-		output = popen.stdout.read()
-		print(output)
+		if verbose:
+			output = popen.stdout.read()
+			print(output)
 		print(" === Done!")
 	elif not os.path.exists(input_file):
 		raise Exception("Input file " + input_file + " does not exist!")
