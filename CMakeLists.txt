@@ -6,6 +6,7 @@ find_package(CUDA 8.0 REQUIRED)
 option(CMAKE_VERBOSE_MAKEFILE ON)
 
 set(CUDA_NVCC_FLAGS -std=c++11)
+set (CMAKE_CXX_STANDARD 11)
 
 if (CUDA_VERBOSE_PTXAS)
   set(VERBOSE_PTXAS --ptxas-options=-v)
@@ -31,11 +32,11 @@ set(GENCODE_SM71
   -gencode=arch=compute_71,code=sm_71 -gencode=arch=compute_71,code=compute_71)
 
 option(SLABHASH_GENCODE_SM30 "GENCODE_SM30" OFF)
-option(SLABHASH_GENCODE_SM35 "GENCODE_SM35" OFF)
+option(SLABHASH_GENCODE_SM35 "GENCODE_SM35" ON)
 option(SLABHASH_GENCODE_SM37 "GENCODE_SM37" OFF)
 option(SLABHASH_GENCODE_SM50 "GENCODE_SM50" OFF)
 option(SLABHASH_GENCODE_SM60 "GENCODE_SM60" OFF)
-option(SLABHASH_GENCODE_SM61 "GENCODE_SM61" OFF)
+option(SLABHASH_GENCODE_SM61 "GENCODE_SM61" ON)
 option(SLABHASH_GENCODE_SM70 "GENCODE_SM70" ON)
 option(SLABHASH_GENCODE_SM71 "GENCODE_SM71" OFF)
 
@@ -73,4 +74,6 @@ endif(SLABHASH_GENCODE_SM71)
 
 include_directories(SlabAlloc/src)
 include_directories(src src/concurrent)
+include_directories(ThirdParty/rapidjson/include)
 add_subdirectory(test)
+add_subdirectory(bench)

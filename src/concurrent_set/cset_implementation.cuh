@@ -16,32 +16,32 @@
 
 #pragma once
 
-template <typename KeyT, typename ValueT, uint32_t DEVICE_IDX>
-void GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashTypeT::ConcurrentSet>::
+template <typename KeyT, typename ValueT>
+void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentSet>::
     buildBulk(KeyT* d_key, ValueT* d_value, uint32_t num_keys) {
   const uint32_t num_blocks = (num_keys + BLOCKSIZE_ - 1) / BLOCKSIZE_;
   // calling the kernel for bulk build:
-  CHECK_CUDA_ERROR(cudaSetDevice(DEVICE_IDX));
+  CHECK_CUDA_ERROR(cudaSetDevice(device_idx_));
   cset::build_table_kernel<KeyT>
       <<<num_blocks, BLOCKSIZE_>>>(d_key, num_keys, gpu_context_);
 }
 
-template <typename KeyT, typename ValueT, uint32_t DEVICE_IDX>
-void GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashTypeT::ConcurrentSet>::
+template <typename KeyT, typename ValueT>
+void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentSet>::
     searchIndividual(KeyT* d_query, ValueT* d_result, uint32_t num_queries) {
-  CHECK_CUDA_ERROR(cudaSetDevice(DEVICE_IDX));
+  CHECK_CUDA_ERROR(cudaSetDevice(device_idx_));
   const uint32_t num_blocks = (num_queries + BLOCKSIZE_ - 1) / BLOCKSIZE_;
   cset::search_table<KeyT><<<num_blocks, BLOCKSIZE_>>>(
       d_query, d_result, num_queries, gpu_context_);
 }
 
-template <typename KeyT, typename ValueT, uint32_t DEVICE_IDX>
+template <typename KeyT, typename ValueT>
 std::string
-GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashTypeT::ConcurrentSet>::
+GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentSet>::
     to_string() {
   std::string result;
   result += " ==== GpuSlabHash: \n";
-  result += "\t Running on device \t\t " + std::to_string(DEVICE_IDX) + "\n";
+  result += "\t Running on device \t\t " + std::to_string(device_idx_) + "\n";
   result +=
       "\t SlabHashType:     \t\t " + gpu_context_.getSlabHashTypeName() + "\n";
   result += "\t Number of buckets:\t\t " + std::to_string(num_buckets_) + "\n";

@@ -16,50 +16,60 @@
 
 #pragma once
 
-template <typename KeyT, typename ValueT, uint32_t DEVICE_IDX>
-void GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashTypeT::ConcurrentMap>::
+template <typename KeyT, typename ValueT>
+void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::
     buildBulk(KeyT* d_key, ValueT* d_value, uint32_t num_keys) {
   const uint32_t num_blocks = (num_keys + BLOCKSIZE_ - 1) / BLOCKSIZE_;
   // calling the kernel for bulk build:
-  CHECK_CUDA_ERROR(cudaSetDevice(DEVICE_IDX));
+  CHECK_CUDA_ERROR(cudaSetDevice(device_idx_));
   build_table_kernel<KeyT, ValueT>
       <<<num_blocks, BLOCKSIZE_>>>(d_key, d_value, num_keys, gpu_context_);
 }
 
-template <typename KeyT, typename ValueT, uint32_t DEVICE_IDX>
-void GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashTypeT::ConcurrentMap>::
+template <typename KeyT, typename ValueT>
+void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::
     searchIndividual(KeyT* d_query, ValueT* d_result, uint32_t num_queries) {
-  CHECK_CUDA_ERROR(cudaSetDevice(DEVICE_IDX));
+  CHECK_CUDA_ERROR(cudaSetDevice(device_idx_));
   const uint32_t num_blocks = (num_queries + BLOCKSIZE_ - 1) / BLOCKSIZE_;
   search_table<KeyT, ValueT><<<num_blocks, BLOCKSIZE_>>>(
       d_query, d_result, num_queries, gpu_context_);
 }
 
-template <typename KeyT, typename ValueT, uint32_t DEVICE_IDX>
-void GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashTypeT::ConcurrentMap>::
+template <typename KeyT, typename ValueT>
+void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::
     searchBulk(KeyT* d_query, ValueT* d_result, uint32_t num_queries) {
-  CHECK_CUDA_ERROR(cudaSetDevice(DEVICE_IDX));
+  CHECK_CUDA_ERROR(cudaSetDevice(device_idx_));
   const uint32_t num_blocks = (num_queries + BLOCKSIZE_ - 1) / BLOCKSIZE_;
   search_table_bulk<KeyT, ValueT><<<num_blocks, BLOCKSIZE_>>>(
       d_query, d_result, num_queries, gpu_context_);
 }
 
-template <typename KeyT, typename ValueT, uint32_t DEVICE_IDX>
-void GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashTypeT::ConcurrentMap>::
+template <typename KeyT, typename ValueT>
+void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::
     deleteIndividual(KeyT* d_key, uint32_t num_keys) {
-  CHECK_CUDA_ERROR(cudaSetDevice(DEVICE_IDX));
+  CHECK_CUDA_ERROR(cudaSetDevice(device_idx_));
   const uint32_t num_blocks = (num_keys + BLOCKSIZE_ - 1) / BLOCKSIZE_;
   delete_table_keys<KeyT, ValueT>
       <<<num_blocks, BLOCKSIZE_>>>(d_key, num_keys, gpu_context_);
 }
 
-template <typename KeyT, typename ValueT, uint32_t DEVICE_IDX>
+// perform a batch of (a mixture of) updates/searches
+template <typename KeyT, typename ValueT>
+void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::
+    batchedOperation(KeyT* d_key, ValueT* d_result, uint32_t num_ops) {
+  CHECK_CUDA_ERROR(cudaSetDevice(device_idx_));
+  const uint32_t num_blocks = (num_ops + BLOCKSIZE_ - 1) / BLOCKSIZE_;
+  batched_operations<KeyT, ValueT>
+      <<<num_blocks, BLOCKSIZE_>>>(d_key, d_result, num_ops, gpu_context_);
+}
+
+template <typename KeyT, typename ValueT>
 std::string
-GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashTypeT::ConcurrentMap>::
+GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::
     to_string() {
   std::string result;
   result += " ==== GpuSlabHash: \n";
-  result += "\t Running on device \t\t " + std::to_string(DEVICE_IDX) + "\n";
+  result += "\t Running on device \t\t " + std::to_string(device_idx_) + "\n";
   result +=
       "\t SlabHashType:     \t\t " + gpu_context_.getSlabHashTypeName() + "\n";
   result += "\t Number of buckets:\t\t " + std::to_string(num_buckets_) + "\n";
@@ -72,8 +82,8 @@ GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashTypeT::ConcurrentMap>::
   return result;
 }
 
-template <typename KeyT, typename ValueT, uint32_t DEVICE_IDX>
-double GpuSlabHash<KeyT, ValueT, DEVICE_IDX, SlabHashTypeT::ConcurrentMap>::
+template <typename KeyT, typename ValueT>
+double GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::
     computeLoadFactor(int flag = 0) {
   uint32_t* h_bucket_count = new uint32_t[num_buckets_];
   uint32_t* d_bucket_count;

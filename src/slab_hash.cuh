@@ -43,6 +43,7 @@
 #include "concurrent_map/device/delete_kernel.cuh"
 #include "concurrent_map/device/misc_kernels.cuh"
 #include "concurrent_map/device/search_kernel.cuh"
+#include "concurrent_map/device/concurrent_kernel.cuh"
 #include "concurrent_set/cset_helper_kernels.cuh"
 
 // implementations:
