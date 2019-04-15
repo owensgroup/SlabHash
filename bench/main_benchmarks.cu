@@ -154,7 +154,8 @@ int main(int argc, char** argv) {
   switch (mode) {
     case 0:  // singleton experiment
       singleton_experiment<KeyT, ValueT>(num_keys, num_queries, expected_chain,
-                                         filename, device_idx,
+                                         filename, device_idx, existing_ratio,
+                                         num_iter,
                                          /*run_cudpp = */ false, verbose);
       break;
     case 1:  // bulk build, num elements fixed, load factor changing

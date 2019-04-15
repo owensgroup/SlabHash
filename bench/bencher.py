@@ -12,20 +12,17 @@ def analyze_singleton_experiment(input_file):
 		trials = data["slab_hash"]["trial"]
 
 		for trial in trials:
-			if( abs(trial["query_ratio"]) < 0.000001):
-				print("here 1")
-				data_q0 = (trial["load_factor"], trial["build_rate_mps"], trial["search_rate_mps"], trial["search_rate_bulk_mps"])
-			elif abs(trial["query_ratio"] - 1.0) < 0.000001:
-				print("here 2")
-				data_q1 = (trial["load_factor"], trial["build_rate_mps"], trial["search_rate_mps"], trial["search_rate_bulk_mps"])
+			data_q0 = (trial["load_factor"], trial["build_rate_mps"], trial["search_rate_mps"], trial["search_rate_bulk_mps"])
 
-		print("Experiments when none of the queries exist:")
+		print("===============================================================================================")
+		print("Singleton experiment:")
+		print("\tNumber of elements to be inserted: %d" % (trials[0]['num_keys']))
+		print("\tNumber of buckets: %d" % (trials[0]['num_buckets']))
+		print("\tExpected chain length: %.2f" % (trials[0]['exp_chain_length']))
+		print("===============================================================================================")
 		print("load factor\tbuild rate(M/s)\t\tsearch rate(M/s)\tsearch rate bulk(M/s)")
+		print("===============================================================================================")
 		print("%.2f\t\t%.3f\t\t%.3f\t\t%.3f" % (data_q0[0], data_q0[1], data_q0[2], data_q0[3]))
-
-		print("Experiments when all of the queries exist:")
-		print("load factor\tbuild rate(M/s)\t\tsearch rate(M/s)\tsearch rate bulk(M/s)")
-		print("%.2f\t\t%.3f\t\t%.3f\t\t%.3f" % (data_q1[0], data_q1[1], data_q1[2], data_q1[3]))
 
 def analyze_load_factor_experiment(input_file):
 	with open(input_file) as json_file:
@@ -47,6 +44,7 @@ def analyze_load_factor_experiment(input_file):
 		print("Load factor experiment:")
 		print("\tTotal number of elements is fixed, load factor (number of buckets) is a variable")
 		print("\tNumber of elements to be inserted: %d" % (trials[0]['num_keys']))
+		print("\t %.2f of %d queries exist in the data structure" % (trials[0]['query_ratio'], trials[0]['num_queries']))
 		print("===============================================================================================")
 		print("load factor\tnum buckets\tbuild rate(M/s)\t\tsearch rate(M/s)\tsearch rate bulk(M/s)")
 		print("===============================================================================================")
@@ -63,16 +61,23 @@ def analyze_table_size_experiment(input_file):
 
 		for trial in trials:
 			tabular_data.append((trial["num_keys"], 
+				trial['num_buckets'],
 				trial['load_factor'], 
-				trial['query_ratio'], 
 				trial["build_rate_mps"], 
 				trial["search_rate_mps"], 
 				trial["search_rate_bulk_mps"]))
 
 		tabular_data.sort()
-		print("num keys\tbuild rate(M/s)\t\tsearch rate(M/s)\tsearch rate bulk(M/s)")
+		print("===============================================================================================")
+		print("Table size experiment:")
+		print("\tTable's expected chain length is fixed, and total number of elements is variable")
+		print("\tExpected chain length = %.2f\n" % trials[0]['exp_chain_length'])
+		print("\t%.2f of %d queries exist in the data structure" % (trials[0]['query_ratio'], trials[0]['num_queries']))
+		print("===============================================================================================")
+		print("(num keys, num buckets, load factor)\tbuild rate(M/s)\t\tsearch rate(M/s)\tsearch rate bulk(M/s)")
+		print("===============================================================================================")
 		for pair in tabular_data:
-			print("%d\t\t%.3f\t\t%.3f\t\t%.3f" % (pair[0], pair[3], pair[4], pair[5]))
+			print("(%d, %d, %.2f)\t\t\t%10.3f\t\t%.3f\t\t%.3f" % (pair[0], pair[1], pair[2], pair[3], pair[4], pair[5]))
 
 def analyze_concurrent_experiment(input_file):
 	with open(input_file) as json_file:
@@ -107,7 +112,7 @@ def main(argv):
 	try:
 		opts, args = getopt.getopt(argv, "hi:m:d:", ["help", "ifile=", "mode=", "device="])
 	except getopt.GetOptError:
-		print("bencher.py -i <inputfile>")
+		print("bencher.py -i <inputfile> -m <experiment mode> -d <device index>")
 		sys.exit(2)
 	
 	for opt, arg in opts:
