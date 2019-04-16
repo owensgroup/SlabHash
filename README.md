@@ -73,7 +73,7 @@ In the following, these benchmarks are run a few GPU architectures. It should be
 
 ### NVIDIA Titan V:
 
-Titan V has Volta architecture with 12GB of DRAM memory. In our setting, we have NVIDIA driver 410.104, and CUDA 10.0 running.
+Titan V has Volta architecture with compute capability 7.0 and 12GB of DRAM memory. In our setting, we have NVIDIA driver 410.104, and CUDA 10.0 running.
 
 #### Mode 0:
 ```
@@ -177,8 +177,108 @@ init lf         final lf        num buckets     init build rate(M/s)    concurre
 
 ### Titan Xp
 
-Titan Xp has Pascal architecture with 12GB of DRAM memory. In our setting, we have NVIDIA driver 410.104, and CUDA 10.0 running.
+Titan Xp has Pascal architecture with compute capability 6.1 and 12GB of DRAM memory. In our setting, we have NVIDIA driver 410.104, and CUDA 10.0 running.
 
+#### Mode 0:
+```
+python3 ../bench/bencher.py -m 0 -d 1
+
+GPU hardware: TITAN Xp
+===============================================================================================
+Singleton experiment:
+        Number of elements to be inserted: 4194304
+        Number of buckets: 466034
+        Expected chain length: 0.60
+===============================================================================================
+load factor     build rate(M/s)         search rate(M/s)        search rate bulk(M/s)
+===============================================================================================
+0.55            1007.340                2162.619                2199.785
+```
+
+#### Mode 1:
+```
+python3 ../bench/bencher.py -m 1 -d 1
+
+GPU hardware: TITAN Xp
+===============================================================================================
+Load factor experiment:
+        Total number of elements is fixed, load factor (number of buckets) is a variable
+        Number of elements to be inserted: 4194304
+         1.00 of 4194304 queries exist in the data structure
+===============================================================================================
+load factor     num buckets     build rate(M/s)         search rate(M/s)        search rate bulk(M/s)
+===============================================================================================
+0.06            4194304         964.644         2090.863                2121.181
+0.19            1398102         985.215         2185.699                2202.151
+0.25            1048576         991.760         2200.967                2216.450
+0.37            699051          1004.214        2224.878                2244.384
+0.44            599187          1011.303        2238.251                2257.993
+0.55            466034          1016.487        2250.549                2267.996
+0.60            419431          1009.784        2158.061                2192.719
+0.65            349526          997.443         2122.280                2142.259
+0.65            262144          972.467         1947.694                1925.717
+0.65            279621          965.888         1998.049                1986.421
+0.66            233017          439.267         1827.755                1790.210
+0.66            322639          987.784         2089.796                2098.361
+0.66            220753          907.927         1778.646                1735.593
+0.69            199729          889.975         1693.262                1646.302
+0.70            190651          881.868         1655.618                1608.166
+0.73            174763          868.159         1587.597                1536.384
+0.74            167773          861.239         1555.640                1503.119
+0.75            155345          847.666         1493.902                1437.697
+0.76            149797          837.248         1464.475                1408.044
+0.76            139811          828.725         1409.983                1348.255
+
+```
+
+#### Mode 2:
+```
+python3 ../bench/bencher.py -m 2 -d 1
+
+GPU hardware: TITAN Xp
+===============================================================================================
+Table size experiment:
+        Table's expected chain length is fixed, and total number of elements is variable
+        Expected chain length = 0.60
+
+        1.00 of 262144 queries exist in the data structure
+===============================================================================================
+(num keys, num buckets, load factor)    build rate(M/s)         search rate(M/s)        search rate bulk(M/s)
+===============================================================================================
+(262144, 29128, 0.55)                     1409.983              2331.910                2694.737
+(524288, 58255, 0.55)                     1423.829              2392.523                2598.985
+(1048576, 116509, 0.55)                   1191.867              2560.000                2612.245
+(2097152, 233017, 0.55)                   1070.482              2375.870                2400.938
+(4194304, 466034, 0.55)                   1012.616              2275.556                2289.547
+(8388608, 932068, 0.55)                    992.530              2147.313                2177.692
+
+```
+
+#### Mode 3:
+```
+python3 ../bench/bencher.py -m 3 -d 1
+
+GPU hardware: TITAN Xp
+===============================================================================================
+Concurrent experiment:
+        variable load factor, fixed number of elements
+        Operation ratio: (insert, delete, search) = (0.10, 0.10, [0.40, 0.40])
+===============================================================================================
+batch_size = 262144, init num batches = 3, final num batches = 4
+===============================================================================================
+init lf         final lf        num buckets     init build rate(M/s)    concurrent rate(Mop/s)
+===============================================================================================
+0.05            0.05            1048576         968.856         1651.613
+0.14            0.14            349526          1017.219                1706.667
+0.19            0.19            262144          1043.478                1753.425
+0.28            0.28            174763          1097.339                1815.603
+0.33            0.33            149797          1123.064                1855.072
+0.42            0.42            116509          1174.593                1909.112
+0.47            0.47            104858          1149.701                1741.867
+0.55            0.55            87382           1193.010                1753.425
+0.59            0.58            80660           1215.190                1753.425
+0.63            0.62            69906           1238.710                1673.545
+```
 ### Tesla K40c
 
 Tesla K40c has Kepler architecture with compute capability 3.5 and 12GB of DRAM. In our setting, we have NVIDIA driver 410.72 and CUDA 10.0.
