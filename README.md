@@ -10,7 +10,7 @@ This library is a rafactored and slightly redesigned version of the original cod
 ## Compilation
 1. `git submodule init`
 2. `git submodule update`
-3. Make sure to edit `CMakeLists.txt` such that it reflects the GPU device's compute capability. For example, to include compute 3.5 you should have `option(SLABHASH_GENCODE_SM35 "GENCODE_SM35" ON)`.
+3. Make sure to edit `CMakeLists.txt` such that it reflects the GPU device's compute capability. For example, to include compute 3.5 you should have `option(SLABHASH_GENCODE_SM35 "GENCODE_SM35" ON)`. Alternatively, one can easily update these flags by using the `ccmake ..` interface from the build directory. 
 4. `mkdir build && cd build`
 5. `cmake ..`
 6. `make`
@@ -71,9 +71,115 @@ A simplified set of benchmark scenarios are available through a Python API that 
 
 In the following, these benchmarks are run a few GPU architectures. It should be noted that majority of input parameters for these scenarios are not exposed as command line arguments in the python code. If interested to try with different set of settings, the reader should either use their corresponding C++ API (through `build/bin/benchmark` and with the parameters listed in [https://github.com/owensgroup/SlabHash/blob/master/bench/main_benchmarks.cu](bench/main_benchmark.cu)), or change these parameters in [https://github.com/owensgroup/SlabHash/blob/master/bench/bencher.py#L166](`bench/bencher.py`).
 
+### NVIDIA GeForce RTX 2080:
+GeForce RTX 2080 has a Turing architecture with compute capability 7.5 and 8GB of DRAM memory. In our setting, we have NVIDIA driver 430.14, and CUDA 10.1.
+
+The following results are for master branch with commit hash cb1734ee02a22aebdecb22c0279c7a15da332ff6.
+
+#### Mode 0:
+```
+python3 ../bench/bencher.py -m 0 -d 0
+
+GPU hardware: GeForce RTX 2080
+===============================================================================================
+Singleton experiment:
+	Number of elements to be inserted: 4194304
+	Number of buckets: 466034
+	Expected chain length: 0.60
+===============================================================================================
+load factor	build rate(M/s)		search rate(M/s)	search rate bulk(M/s)
+===============================================================================================
+0.55		912.650		1930.254		1973.352
+```
+
+#### Mode 1:
+```
+python3 ../bench/bencher.py -m 1 -d 0
+
+GPU hardware: GeForce RTX 2080
+===============================================================================================
+Load factor experiment:
+	Total number of elements is fixed, load factor (number of buckets) is a variable
+	Number of elements to be inserted: 4194304
+	 1.00 of 4194304 queries exist in the data structure
+===============================================================================================
+load factor	num buckets	build rate(M/s)		search rate(M/s)	search rate bulk(M/s)
+===============================================================================================
+0.06		4194304		861.149		1860.127		1897.779
+0.19		1398102		868.142		1889.353		1917.126
+0.25		1048576		865.396		1897.587		1935.070
+0.37		699051		894.140		1925.491		1951.696
+0.44		599187		888.786		1924.727		1971.126
+0.55		466034		897.348		1945.381		1982.515
+0.60		419431		905.537		1943.449		1969.260
+0.65		349526		909.736		1896.900		1936.958
+0.65		262144		865.819		1742.237		1785.819
+0.65		279621		882.153		1794.917		1825.312
+0.66		233017		840.275		1656.958		1696.176
+0.66		322639		893.878		1871.789		1915.809
+0.66		220753		831.960		1619.813		1653.572
+0.69		199729		821.923		1542.169		1571.814
+0.70		190651		812.457		1509.976		1536.384
+0.73		174763		797.804		1444.304		1472.074
+0.74		167773		788.925		1409.498		1451.453
+0.75		155345		771.897		1361.815		1397.073
+0.76		149797		764.415		1337.688		1364.367
+0.76		139811		749.947		1282.041		1312.374
+```
+
+#### Mode 2:
+```
+python3 ../bench/bencher.py -m 2 -d 0 
+
+GPU hardware: GeForce RTX 2080
+===============================================================================================
+Table size experiment:
+	Table's expected chain length is fixed, and total number of elements is variable
+	Expected chain length = 0.60
+
+	1.00 of 262144 queries exist in the data structure
+===============================================================================================
+(num keys, num buckets, load factor)	build rate(M/s)		search rate(M/s)	search rate bulk(M/s)
+===============================================================================================
+(262144, 29128, 0.55)			  1346.040		2577.722		2785.447
+(524288, 58255, 0.55)			  1271.655		2319.366		2461.538
+(1048576, 116509, 0.55)			  1116.761		2139.322		2209.873
+(2097152, 233017, 0.55)			   984.349		2076.750		2117.411
+(4194304, 466034, 0.55)			   916.741		1988.169		2020.658
+(8388608, 932068, 0.55)			   871.570		1898.617		1926.835
+```
+
+#### Mode 3:
+```
+python3 ../bench/bencher.py -m 3 -d 0
+
+GPU hardware: GeForce RTX 2080
+===============================================================================================
+Concurrent experiment:
+	variable load factor, fixed number of elements
+	Operation ratio: (insert, delete, search) = (0.10, 0.10, [0.40, 0.40])
+===============================================================================================
+batch_size = 262144, init num batches = 3, final num batches = 4
+===============================================================================================
+init lf		final lf	num buckets	init build rate(M/s)	concurrent rate(Mop/s)
+===============================================================================================
+0.05		0.05		1048576		855.979		        1406.593
+0.14		0.14		349526		902.501		        1467.049
+0.19		0.19		262144		937.121		        1488.642
+0.28		0.28		174763		995.060		        1560.678
+0.33		0.33		149797		1047.526		1552.986
+0.42		0.42		116509		1070.523		1618.972
+0.47		0.47		104858		1110.027		1635.456
+0.55		0.55		87382		1138.991		1626.042
+0.59		0.58		80660		1140.100		1615.779
+0.63		0.62		69906		1115.924		1561.273
+```
+
 ### NVIDIA Titan V:
 
 Titan V has Volta architecture with compute capability 7.0 and 12GB of DRAM memory. In our setting, we have NVIDIA driver 410.104, and CUDA 10.0 running.
+
+The following results are for master branch with commit hash cb1734ee02a22aebdecb22c0279c7a15da332ff6.
 
 #### Mode 0:
 ```
@@ -92,7 +198,7 @@ load factor     build rate(M/s)         search rate(M/s)        search rate bulk
 0.55            1525.352                4137.374                3241.468
 ```
 
-#### Mod 1:
+#### Mode 1:
 ```
 python3 ../bench/bencher.py -m 1 -d 0
 
@@ -179,6 +285,7 @@ init lf         final lf        num buckets     init build rate(M/s)    concurre
 
 Titan Xp has Pascal architecture with compute capability 6.1 and 12GB of DRAM memory. In our setting, we have NVIDIA driver 410.104, and CUDA 10.0 running.
 
+The following results are for master branch with commit hash cb1734ee02a22aebdecb22c0279c7a15da332ff6.
 #### Mode 0:
 ```
 python3 ../bench/bencher.py -m 0 -d 1
@@ -282,6 +389,8 @@ init lf         final lf        num buckets     init build rate(M/s)    concurre
 ### Tesla K40c
 
 Tesla K40c has Kepler architecture with compute capability 3.5 and 12GB of DRAM. In our setting, we have NVIDIA driver 410.72 and CUDA 10.0.
+
+The following results are for master branch with commit hash cb1734ee02a22aebdecb22c0279c7a15da332ff6.
 
 #### Mode 0:
 ```
