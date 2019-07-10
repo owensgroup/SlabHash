@@ -32,24 +32,22 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::deleteKey(
 
   while ((work_queue = __ballot_sync(0xFFFFFFFF, to_be_deleted))) {
     // to know whether it is a base node, or a regular node
-    next = (last_work_queue != work_queue)
-               ? SlabHashT::A_INDEX_POINTER
-               : next;  // a successfull insertion in the warp
+    next = (last_work_queue != work_queue) ? SlabHashT::A_INDEX_POINTER
+                                           : next;  // a successfull insertion in the warp
     uint32_t src_lane = __ffs(work_queue) - 1;
-    uint32_t src_key =
-        __shfl_sync(0xFFFFFFFF,
-                    *reinterpret_cast<const uint32_t*>(
-                        reinterpret_cast<const unsigned char*>(&myKey)),
-                    src_lane, 32);
+    uint32_t src_key = __shfl_sync(0xFFFFFFFF,
+                                   *reinterpret_cast<const uint32_t*>(
+                                       reinterpret_cast<const unsigned char*>(&myKey)),
+                                   src_lane,
+                                   32);
     uint32_t src_bucket = __shfl_sync(0xFFFFFFFF, bucket_id, src_lane, 32);
     // starting with a base node OR regular node:
     // need to define different masks to extract super block index, memory block
     // index, and the memory unit index
 
-    const uint32_t src_unit_data =
-        (next == SlabHashT::A_INDEX_POINTER)
-            ? *(getPointerFromBucket(src_bucket, laneId))
-            : *(getPointerFromSlab(next, laneId));
+    const uint32_t src_unit_data = (next == SlabHashT::A_INDEX_POINTER)
+                                       ? *(getPointerFromBucket(src_bucket, laneId))
+                                       : *(getPointerFromSlab(next, laneId));
 
     // looking for the item to be deleted:
     uint32_t isFound = (__ballot_sync(0xFFFFFFFF, src_unit_data == src_key)) &

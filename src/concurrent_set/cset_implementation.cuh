@@ -17,8 +17,10 @@
 #pragma once
 
 template <typename KeyT, typename ValueT>
-void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentSet>::
-    buildBulk(KeyT* d_key, ValueT* d_value, uint32_t num_keys) {
+void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentSet>::buildBulk(
+    KeyT* d_key,
+    ValueT* d_value,
+    uint32_t num_keys) {
   const uint32_t num_blocks = (num_keys + BLOCKSIZE_ - 1) / BLOCKSIZE_;
   // calling the kernel for bulk build:
   CHECK_CUDA_ERROR(cudaSetDevice(device_idx_));
@@ -27,28 +29,26 @@ void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentSet>::
 }
 
 template <typename KeyT, typename ValueT>
-void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentSet>::
-    searchIndividual(KeyT* d_query, ValueT* d_result, uint32_t num_queries) {
+void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentSet>::searchIndividual(
+    KeyT* d_query,
+    ValueT* d_result,
+    uint32_t num_queries) {
   CHECK_CUDA_ERROR(cudaSetDevice(device_idx_));
   const uint32_t num_blocks = (num_queries + BLOCKSIZE_ - 1) / BLOCKSIZE_;
-  cset::search_table<KeyT><<<num_blocks, BLOCKSIZE_>>>(
-      d_query, d_result, num_queries, gpu_context_);
+  cset::search_table<KeyT>
+      <<<num_blocks, BLOCKSIZE_>>>(d_query, d_result, num_queries, gpu_context_);
 }
 
 template <typename KeyT, typename ValueT>
-std::string
-GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentSet>::
-    to_string() {
+std::string GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentSet>::to_string() {
   std::string result;
   result += " ==== GpuSlabHash: \n";
   result += "\t Running on device \t\t " + std::to_string(device_idx_) + "\n";
-  result +=
-      "\t SlabHashType:     \t\t " + gpu_context_.getSlabHashTypeName() + "\n";
+  result += "\t SlabHashType:     \t\t " + gpu_context_.getSlabHashTypeName() + "\n";
   result += "\t Number of buckets:\t\t " + std::to_string(num_buckets_) + "\n";
-  result +=
-      "\t d_table_ address: \t\t " +
-      std::to_string(reinterpret_cast<uint64_t>(static_cast<void*>(d_table_))) +
-      "\n";
+  result += "\t d_table_ address: \t\t " +
+            std::to_string(reinterpret_cast<uint64_t>(static_cast<void*>(d_table_))) +
+            "\n";
   result += "\t hash function = \t\t (" + std::to_string(hf_.x) + ", " +
             std::to_string(hf_.y) + ")\n";
   return result;

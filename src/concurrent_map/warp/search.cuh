@@ -33,24 +33,21 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::searchKey(
   uint32_t next = SlabHashT::A_INDEX_POINTER;
 
   while ((work_queue = __ballot_sync(0xFFFFFFFF, to_be_searched))) {
-    next = (last_work_queue != work_queue)
-               ? SlabHashT::A_INDEX_POINTER
-               : next;  // a successfull insertion in the warp
+    next = (last_work_queue != work_queue) ? SlabHashT::A_INDEX_POINTER
+                                           : next;  // a successfull insertion in the warp
     uint32_t src_lane = __ffs(work_queue) - 1;
     uint32_t src_bucket = __shfl_sync(0xFFFFFFFF, bucket_id, src_lane, 32);
-    uint32_t wanted_key =
-        __shfl_sync(0xFFFFFFFF,
-                    *reinterpret_cast<const uint32_t*>(
-                        reinterpret_cast<const unsigned char*>(&myKey)),
-                    src_lane, 32);
-    const uint32_t src_unit_data =
-        (next == SlabHashT::A_INDEX_POINTER)
-            ? *(getPointerFromBucket(src_bucket, laneId))
-            : *(getPointerFromSlab(next, laneId));
-    int found_lane =
-        __ffs(__ballot_sync(0xFFFFFFFF, src_unit_data == wanted_key) &
-              SlabHashT::REGULAR_NODE_KEY_MASK) -
-        1;
+    uint32_t wanted_key = __shfl_sync(0xFFFFFFFF,
+                                      *reinterpret_cast<const uint32_t*>(
+                                          reinterpret_cast<const unsigned char*>(&myKey)),
+                                      src_lane,
+                                      32);
+    const uint32_t src_unit_data = (next == SlabHashT::A_INDEX_POINTER)
+                                       ? *(getPointerFromBucket(src_bucket, laneId))
+                                       : *(getPointerFromSlab(next, laneId));
+    int found_lane = __ffs(__ballot_sync(0xFFFFFFFF, src_unit_data == wanted_key) &
+                           SlabHashT::REGULAR_NODE_KEY_MASK) -
+                     1;
     if (found_lane < 0) {  // not found
       uint32_t next_ptr = __shfl_sync(0xFFFFFFFF, src_unit_data, 31, 32);
       if (next_ptr == SlabHashT::EMPTY_INDEX_POINTER) {  // not found
@@ -62,8 +59,7 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::searchKey(
         next = next_ptr;
       }
     } else {  // found the key:
-      uint32_t found_value =
-          __shfl_sync(0xFFFFFFFF, src_unit_data, found_lane + 1, 32);
+      uint32_t found_value = __shfl_sync(0xFFFFFFFF, src_unit_data, found_lane + 1, 32);
       if (laneId == src_lane) {
         myValue = *reinterpret_cast<const ValueT*>(
             reinterpret_cast<const unsigned char*>(&found_value));
@@ -91,22 +87,21 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::searchKeyBulk(
     uint32_t next_ptr = SlabHashT::EMPTY_INDEX_POINTER;
     uint32_t found_lane_plus_1 = 0;
     uint32_t src_bucket = __shfl_sync(0xFFFFFFFF, bucket_id, src_lane, 32);
-    uint32_t wanted_key =
-        __shfl_sync(0xFFFFFFFF,
-                    *reinterpret_cast<const uint32_t*>(
-                        reinterpret_cast<const unsigned char*>(&myKey)),
-                    src_lane, 32);
+    uint32_t wanted_key = __shfl_sync(0xFFFFFFFF,
+                                      *reinterpret_cast<const uint32_t*>(
+                                          reinterpret_cast<const unsigned char*>(&myKey)),
+                                      src_lane,
+                                      32);
 
     do {
-      const uint32_t src_unit_data =
-          (is_top_of_list) ? *(getPointerFromBucket(src_bucket, laneId))
-                           : *(getPointerFromSlab(next_ptr, laneId));
+      const uint32_t src_unit_data = (is_top_of_list)
+                                         ? *(getPointerFromBucket(src_bucket, laneId))
+                                         : *(getPointerFromSlab(next_ptr, laneId));
 
       next_ptr = __shfl_sync(0xFFFFFFFF, src_unit_data, 31, 32);
       // if found_lane_plus_1 == 0, then the query is not found
-      found_lane_plus_1 =
-          __ffs(__ballot_sync(0xFFFFFFFF, src_unit_data == wanted_key) &
-                SlabHashT::REGULAR_NODE_KEY_MASK);
+      found_lane_plus_1 = __ffs(__ballot_sync(0xFFFFFFFF, src_unit_data == wanted_key) &
+                                SlabHashT::REGULAR_NODE_KEY_MASK);
       // values are stored at (found_value + 1)
       uint32_t found_value =
           __shfl_sync(0xFFFFFFFF, src_unit_data, found_lane_plus_1, 32);
@@ -116,7 +111,6 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::searchKeyBulk(
                           reinterpret_cast<const unsigned char*>(&found_value))
                     : myValue;
       is_top_of_list = false;
-    } while ((next_ptr != SlabHashT::EMPTY_INDEX_POINTER) &&
-             (found_lane_plus_1 == 0));
+    } while ((next_ptr != SlabHashT::EMPTY_INDEX_POINTER) && (found_lane_plus_1 == 0));
   }
 }
