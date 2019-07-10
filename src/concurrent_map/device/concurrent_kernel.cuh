@@ -41,7 +41,7 @@ __global__ void batched_operations(
     myKey = myOperation & 0x3FFFFFFF;
     myBucket = slab_hash.computeBucket(myKey);
     myOperation = myOperation >> 30;
-    // todo: should be changed to a more general case 
+    // todo: should be changed to a more general case
     myValue = myKey;  // for the sake of this benchmark
   }
 

@@ -36,9 +36,8 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::insertPair(
 
   while ((work_queue = __ballot_sync(0xFFFFFFFF, to_be_inserted))) {
     // to know whether it is a base node, or a regular node
-    next = (last_work_queue != work_queue)
-               ? SlabHashT::A_INDEX_POINTER
-               : next;  // a successfull insertion in the warp
+    next = (last_work_queue != work_queue) ? SlabHashT::A_INDEX_POINTER
+                                           : next;  // a successfull insertion in the warp
     uint32_t src_lane = __ffs(work_queue) - 1;
     uint32_t src_bucket = __shfl_sync(0xFFFFFFFF, bucket_id, src_lane, 32);
 
@@ -61,8 +60,8 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::insertPair(
                                   ? getPointerFromBucket(src_bucket, 31)
                                   : getPointerFromSlab(next, 31);
 
-          uint32_t temp = atomicCAS(
-              (unsigned int*)p, SlabHashT::EMPTY_INDEX_POINTER, new_node_ptr);
+          uint32_t temp =
+              atomicCAS((unsigned int*)p, SlabHashT::EMPTY_INDEX_POINTER, new_node_ptr);
           // check whether it was successful, and
           // free the allocated memory otherwise
           if (temp != SlabHashT::EMPTY_INDEX_POINTER) {
@@ -80,7 +79,8 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::insertPair(
                                 : getPointerFromSlab(next, dest_lane);
 
         old_key_value_pair =
-            atomicCAS((unsigned long long int*)p, EMPTY_PAIR_64,
+            atomicCAS((unsigned long long int*)p,
+                      EMPTY_PAIR_64,
                       ((uint64_t)(*reinterpret_cast<const uint32_t*>(
                            reinterpret_cast<const unsigned char*>(&myValue)))
                        << 32) |

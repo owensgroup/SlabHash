@@ -70,15 +70,13 @@ __global__ void compute_stats_allocators(
     GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> slab_hash) {
   uint32_t tid = threadIdx.x + blockIdx.x * blockDim.x;
 
-  int num_bitmaps =
-      slab_hash.getAllocatorContext().NUM_MEM_BLOCKS_PER_SUPER_BLOCK_ * 32;
+  int num_bitmaps = slab_hash.getAllocatorContext().NUM_MEM_BLOCKS_PER_SUPER_BLOCK_ * 32;
   if (tid >= num_bitmaps) {
     return;
   }
 
   for (int i = 0; i < slab_hash.getAllocatorContext().num_super_blocks_; i++) {
-    uint32_t read_bitmap =
-        *(slab_hash.getAllocatorContext().getPointerForBitmap(i, tid));
+    uint32_t read_bitmap = *(slab_hash.getAllocatorContext().getPointerForBitmap(i, tid));
     atomicAdd(&d_count_super_block[i], __popc(read_bitmap));
   }
 }

@@ -18,14 +18,13 @@
 
 #include "slab_alloc.cuh"
 
-#define CHECK_CUDA_ERROR(call)                                \
-  do {                                                        \
-    cudaError_t err = call;                                   \
-    if (err != cudaSuccess) {                                 \
-      printf("CUDA error at %s %d: %s\n", __FILE__, __LINE__, \
-             cudaGetErrorString(err));                        \
-      exit(EXIT_FAILURE);                                     \
-    }                                                         \
+#define CHECK_CUDA_ERROR(call)                                                          \
+  do {                                                                                  \
+    cudaError_t err = call;                                                             \
+    if (err != cudaSuccess) {                                                           \
+      printf("CUDA error at %s %d: %s\n", __FILE__, __LINE__, cudaGetErrorString(err)); \
+      exit(EXIT_FAILURE);                                                               \
+    }                                                                                   \
   } while (0)
 
 // internal parameters for slab hash device functions:
@@ -97,7 +96,6 @@ class ConcurrentMapT {
 template <typename KeyT>
 class ConcurrentSetT {
  public:
-
   // fixed parameters for the data structure
   static constexpr uint32_t A_INDEX_POINTER = 0xFFFFFFFE;
   static constexpr uint32_t EMPTY_INDEX_POINTER = 0xFFFFFFFF;
@@ -120,9 +118,7 @@ class PhaseConcurrentMapT {
 };
 
 // the main class to be specialized for different types of hash tables
-template <typename KeyT,
-          typename ValueT,
-          SlabHashTypeT SlabHashT>
+template <typename KeyT, typename ValueT, SlabHashTypeT SlabHashT>
 class GpuSlabHash;
 
 template <typename KeyT, typename ValueT, SlabHashTypeT SlabHashT>
@@ -140,10 +136,9 @@ using DynamicAllocatorT = SlabAllocLight<slab_alloc_par::log_num_mem_blocks,
                                          slab_alloc_par::num_super_blocks,
                                          slab_alloc_par::num_replicas>;
 
-using AllocatorContextT =
-    SlabAllocLightContext<slab_alloc_par::log_num_mem_blocks,
-                          slab_alloc_par::num_super_blocks,
-                          slab_alloc_par::num_replicas>;
+using AllocatorContextT = SlabAllocLightContext<slab_alloc_par::log_num_mem_blocks,
+                                                slab_alloc_par::num_super_blocks,
+                                                slab_alloc_par::num_replicas>;
 
 using SlabAddressT = uint32_t;
 using BucketAddressT = SlabAddressT;

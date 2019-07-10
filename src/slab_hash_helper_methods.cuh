@@ -22,26 +22,24 @@ namespace SlabHash_NS {
  * if found, otherwise returns -1
  */
 template <typename KeyT, class SlabHashT>
-__device__ __forceinline__ int32_t
-findKeyOrEmptyPerWarp(const KeyT& src_key, const uint32_t read_data_chunk) {
-  uint32_t isEmpty =
-      (__ballot_sync(0xFFFFFFFF, (read_data_chunk == EMPTY_KEY) ||
-                                     (read_data_chunk == src_key)));
+__device__ __forceinline__ int32_t findKeyOrEmptyPerWarp(const KeyT& src_key,
+                                                         const uint32_t read_data_chunk) {
+  uint32_t isEmpty = (__ballot_sync(
+      0xFFFFFFFF, (read_data_chunk == EMPTY_KEY) || (read_data_chunk == src_key)));
   return __ffs(isEmpty & SlabHashT::REGULAR_NODE_KEY_MASK) - 1;
 }
 
 // search for just the key
 template <typename KeyT, class SlabHashT>
-__device__ __forceinline__ int32_t
-findKeyPerWarp(const KeyT& src_key, const uint32_t read_data_chunk) {
+__device__ __forceinline__ int32_t findKeyPerWarp(const KeyT& src_key,
+                                                  const uint32_t read_data_chunk) {
   uint32_t isEmpty = __ballot_sync(0xFFFFFFFF, (read_data_chunk == src_key));
   return __ffs(isEmpty & SlabHashT::REGULAR_NODE_KEY_MASK) - 1;
 }
 
 // search for an empty spot
 template <typename KeyT, class SlabHashT>
-__device__ __forceinline__ int32_t
-findEmptyPerWarp(const uint32_t read_data_chunk) {
+__device__ __forceinline__ int32_t findEmptyPerWarp(const uint32_t read_data_chunk) {
   uint32_t isEmpty = __ballot_sync(0xFFFFFFFF, (read_data_chunk == EMPTY_KEY));
   return __ffs(isEmpty & SlabHashT::REGULAR_NODE_KEY_MASK) - 1;
 }

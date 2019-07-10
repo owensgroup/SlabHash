@@ -74,7 +74,7 @@ __global__ void search_table(
 
   // writing back the results:
   if (tid < num_queries) {
-    d_results[tid] =  myResult ? myQuery : SEARCH_NOT_FOUND;
+    d_results[tid] = myResult ? myQuery : SEARCH_NOT_FOUND;
   }
 }
 };  // namespace cset
