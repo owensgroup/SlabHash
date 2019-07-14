@@ -22,7 +22,8 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentSet>::insertKey(
     bool& to_be_inserted,
     const uint32_t& laneId,
     const KeyT& myKey,
-    const uint32_t bucket_id) {
+    const uint32_t bucket_id, 
+    AllocatorContextT& local_allocator_ctx) {
   using SlabHashT = ConcurrentSetT<KeyT>;
   uint32_t work_queue = 0;
   uint32_t last_work_queue = 0;
@@ -50,7 +51,7 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentSet>::insertKey(
       uint32_t next_ptr = __shfl_sync(0xFFFFFFFF, src_unit_data, 31, 32);
       if (next_ptr == SlabHashT::EMPTY_INDEX_POINTER) {
         // allocate a new node:
-        uint32_t new_node_ptr = allocateSlab(laneId);
+        uint32_t new_node_ptr = allocateSlab(local_allocator_ctx, laneId);
 
         if (laneId == 31) {
           uint32_t* p = (next == SlabHashT::A_INDEX_POINTER)
