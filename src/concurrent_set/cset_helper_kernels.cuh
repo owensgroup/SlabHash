@@ -29,7 +29,8 @@ __global__ void build_table_kernel(
   }
 
   // initializing the memory allocator on each warp:
-  slab_hash.getAllocatorContext().initAllocator(tid, laneId);
+  AllocatorContextT local_allocator_ctx(slab_hash.getAllocatorContext());
+  local_allocator_ctx.initAllocator(tid, laneId);
 
   KeyT myKey = 0;
   uint32_t myBucket = 0;
@@ -41,7 +42,7 @@ __global__ void build_table_kernel(
     to_insert = true;
   }
 
-  slab_hash.insertKey(to_insert, laneId, myKey, myBucket);
+  slab_hash.insertKey(to_insert, laneId, myKey, myBucket, local_allocator_ctx);
 }
 
 //=== Individual search kernel:
@@ -57,9 +58,6 @@ __global__ void search_table(
   if ((tid - laneId) >= num_queries) {
     return;
   }
-
-  // initializing the memory allocator on each warp:
-  slab_hash.getAllocatorContext().initAllocator(tid, laneId);
 
   KeyT myQuery = 0;
   uint32_t myBucket = 0;
