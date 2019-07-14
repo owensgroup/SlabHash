@@ -29,7 +29,8 @@ __global__ void batched_operations(
     return;
 
   // initializing the memory allocator on each warp:
-  slab_hash.getAllocatorContext().initAllocator(tid, laneId);
+  AllocatorContextT local_allocator_ctx(slab_hash.getAllocatorContext());
+  local_allocator_ctx.initAllocator(tid, laneId);
 
   uint32_t myOperation = 0;
   uint32_t myKey = 0;
@@ -50,7 +51,7 @@ __global__ void batched_operations(
   bool to_search = (myOperation == 3) ? true : false;
 
   // first insertions:
-  slab_hash.insertPair(to_insert, laneId, myKey, myValue, myBucket);
+  slab_hash.insertPair(to_insert, laneId, myKey, myValue, myBucket, local_allocator_ctx);
 
   // second deletions:
   slab_hash.deleteKey(to_delete, laneId, myKey, myBucket);
