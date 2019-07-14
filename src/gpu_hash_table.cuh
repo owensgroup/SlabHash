@@ -101,6 +101,7 @@ class gpu_hash_table {
     delete (slab_hash_);
   }
 
+  std::string to_string() { return slab_hash_->to_string(); }
   float hash_build(KeyT* h_key, ValueT* h_value, uint32_t num_keys) {
     // moving key-values to the device:
     CHECK_CUDA_ERROR(cudaSetDevice(device_idx_));
