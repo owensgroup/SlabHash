@@ -28,9 +28,6 @@ __global__ void delete_table_keys(
     return;
   }
 
-  // initializing the memory allocator:
-  slab_hash.getAllocatorContext().initAllocator(tid, laneId);
-
   KeyT myKey = 0;
   uint32_t myBucket = 0;
   bool to_delete = false;

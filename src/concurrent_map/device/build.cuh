@@ -31,8 +31,8 @@ __global__ void build_table_kernel(
     return;
   }
 
-  // initializing the memory allocator on each warp:
-  slab_hash.getAllocatorContext().initAllocator(tid, laneId);
+  AllocatorContextT local_allocator_ctx(slab_hash.getAllocatorContext());
+  local_allocator_ctx.initAllocator(tid, laneId);
 
   KeyT myKey = 0;
   ValueT myValue = 0;
@@ -45,6 +45,6 @@ __global__ void build_table_kernel(
     myBucket = slab_hash.computeBucket(myKey);
     to_insert = true;
   }
-
-  slab_hash.insertPair(to_insert, laneId, myKey, myValue, myBucket);
+  
+  slab_hash.insertPair(to_insert, laneId, myKey, myValue, myBucket, local_allocator_ctx);
 }

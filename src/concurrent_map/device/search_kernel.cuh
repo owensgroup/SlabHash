@@ -30,9 +30,6 @@ __global__ void search_table(
     return;
   }
 
-  // initializing the memory allocator on each warp:
-  slab_hash.getAllocatorContext().initAllocator(tid, laneId);
-
   KeyT myQuery = 0;
   ValueT myResult = static_cast<ValueT>(SEARCH_NOT_FOUND);
   uint32_t myBucket = 0;
@@ -64,9 +61,6 @@ __global__ void search_table_bulk(
   if ((tid - laneId) >= num_queries) {
     return;
   }
-
-  // initializing the memory allocator on each warp:
-  slab_hash.getAllocatorContext().initAllocator(tid, laneId);
 
   KeyT myQuery = 0;
   ValueT myResult = static_cast<ValueT>(SEARCH_NOT_FOUND);
