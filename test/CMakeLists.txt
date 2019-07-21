@@ -1,3 +1,7 @@
+cuda_add_executable(cmap_test cmap_test.cu 
+		OPTIONS ${GENCODE} ${CUDA_VERBOSE_PTXAS})
+target_link_libraries(cmap_test gtest)
+
 cuda_add_executable(test_slab_hash test_slab_hash.cu 
 		OPTIONS ${GENCODE} ${CUDA_VERBOSE_PTXAS})
 
