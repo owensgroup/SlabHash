@@ -4,6 +4,7 @@ project (SlabHash)
 find_package(CUDA 8.0 REQUIRED)
 
 option(CMAKE_VERBOSE_MAKEFILE ON)
+option(DGTEST,  "DGTEST"  ON)
 
 set(CUDA_NVCC_FLAGS -std=c++11)
 set (CMAKE_CXX_STANDARD 11)
@@ -11,6 +12,8 @@ set (CMAKE_CXX_STANDARD 11)
 if (CUDA_VERBOSE_PTXAS)
   set(VERBOSE_PTXAS --ptxas-options=-v)
 endif (CUDA_VERBOSE_PTXAS)
+
+set(CMAKE_BUILD_TYPE "Release")
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
@@ -82,5 +85,12 @@ endif(SLABHASH_GENCODE_SM75)
 include_directories(SlabAlloc/src)
 include_directories(src src/concurrent)
 include_directories(ThirdParty/rapidjson/include)
+include_directories(ThirdParty/googletest/googletest)
+include_directories(ThirdParty/googletest/googletest/include)
+add_subdirectory(ThirdParty/googletest/googletest)
 add_subdirectory(test)
 add_subdirectory(bench)
+
+if (DGTEST)
+  enable_testing()
+endif()
