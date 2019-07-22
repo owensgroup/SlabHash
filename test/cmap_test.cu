@@ -18,16 +18,21 @@
 #include <cuda_runtime_api.h>
 #include <gtest/gtest.h>
 #include <stdio.h>
+#include <cstdlib>
 #include <iostream>
+#include <unordered_map>
+#include <random>
+
+#include "CommandLine.h"
 #include "gpu_hash_table.cuh"
 #include "slab_alloc.cuh"
 #include "slab_hash.cuh"
 
-#define DEVICE_ID 0
+size_t g_gpu_device_idx{0};  // the gpu device to run tests on
 
-TEST(Construct, ConcurrentMap) {
+TEST(ConcurrentMap, Construction) {
   gpu_hash_table<uint32_t, uint32_t, SlabHashTypeT::ConcurrentMap> cmap(
-      100, 10, DEVICE_ID, /*seed = */ 1);
+      100, 10, g_gpu_device_idx, /*seed = */ 1);
 
   std::vector<uint32_t> h_key{10, 5, 1};
   std::vector<uint32_t> h_value{100, 50, 10};
@@ -35,7 +40,103 @@ TEST(Construct, ConcurrentMap) {
   cmap.hash_build(h_key.data(), h_value.data(), h_key.size());
 }
 
+TEST(BulkBuild, IndividualSearch) {
+  using KeyT = uint32_t;
+  using ValueT = uint32_t;
+  const uint32_t num_keys = 137;
+  const uint32_t num_buckets = 2;
+  // creating the data structures:
+  gpu_hash_table<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> cmap(
+      num_keys, num_buckets, g_gpu_device_idx, /*seed = */ 1);
+
+  // creating key-value pairs:
+  std::vector<KeyT> h_key;
+  h_key.reserve(num_keys);
+  std::vector<ValueT> h_value;
+  h_value.reserve(num_keys);
+  for (uint32_t i_key = 0; i_key < num_keys; i_key++) {
+    h_key.push_back(13 + i_key);
+    h_value.push_back(1000 + h_key.back());
+  }
+
+  // building the slab hash, and the host's data structure:
+  cmap.hash_build(h_key.data(), h_value.data(), h_key.size());
+
+  // generating random queries
+  const auto num_queries = num_keys;
+  std::random_device rd;
+  std::mt19937 rng(rd());
+  std::vector<KeyT> h_query(h_key);
+  std::shuffle(h_query.begin(), h_query.end(), rng);
+  std::vector<ValueT> cmap_results(num_queries);
+
+  // searching for the queries:
+  cmap.hash_search(h_query.data(), cmap_results.data(), num_queries);
+
+  // validating the results:
+  std::unordered_map<KeyT, ValueT> hash_map;
+  for (uint32_t i_key = 0; i_key < num_keys; i_key++) {
+    hash_map.insert(std::make_pair(h_key[i_key], h_value[i_key]));
+  }
+
+  for (uint32_t i = 0; i < num_queries; i++) {
+    auto cmap_result = cmap_results[i];
+    auto expected_result = hash_map[h_query[i]];
+    ASSERT_EQ(expected_result, cmap_result);
+  }
+}
+
+TEST(BulkBuild, BulkSearch) {
+  using KeyT = uint32_t;
+  using ValueT = uint32_t;
+  const uint32_t num_keys = 137;
+  const uint32_t num_buckets = 2;
+  // creating the data structures:
+  gpu_hash_table<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> cmap(
+      num_keys, num_buckets, g_gpu_device_idx, /*seed = */ 1);
+
+  // creating key-value pairs:
+  std::vector<KeyT> h_key;
+  h_key.reserve(num_keys);
+  std::vector<ValueT> h_value;
+  h_value.reserve(num_keys);
+  for (uint32_t i_key = 0; i_key < num_keys; i_key++) {
+    h_key.push_back(13 + i_key);
+    h_value.push_back(1000 + h_key.back());
+  }
+
+  // building the slab hash, and the host's data structure:
+  cmap.hash_build(h_key.data(), h_value.data(), h_key.size());
+
+  // generating random queries
+  const auto num_queries = num_keys;
+  std::random_device rd;
+  std::mt19937 rng(rd());
+  std::vector<KeyT> h_query(h_key);
+  std::shuffle(h_query.begin(), h_query.end(), rng);
+  std::vector<ValueT> cmap_results(num_queries);
+
+  // searching for the queries:
+  cmap.hash_search_bulk(h_query.data(), cmap_results.data(), num_queries);
+
+  // validating the results:
+  std::unordered_map<KeyT, ValueT> hash_map;
+  for (uint32_t i_key = 0; i_key < num_keys; i_key++) {
+    hash_map.insert(std::make_pair(h_key[i_key], h_value[i_key]));
+  }
+
+  for (uint32_t i = 0; i < num_queries; i++) {
+    auto cmap_result = cmap_results[i];
+    auto expected_result = hash_map[h_query[i]];
+    ASSERT_EQ(expected_result, cmap_result);
+  }
+}
+
 int main(int argc, char** argv) {
+  if (cmdOptionExists(argv, argc + argv, "-device")) {
+    g_gpu_device_idx = atoi(getCmdOption(argv, argv + argc, "-device"));
+  }
+
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
