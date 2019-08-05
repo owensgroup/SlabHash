@@ -51,6 +51,17 @@ void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::searchBulk(
 }
 
 template <typename KeyT, typename ValueT>
+void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::countIndividual(
+    KeyT* d_query,
+    uint32_t* d_count,
+    uint32_t num_queries) {
+  CHECK_CUDA_ERROR(cudaSetDevice(device_idx_));
+  const uint32_t num_blocks = (num_queries + BLOCKSIZE_ - 1) / BLOCKSIZE_;
+  count_key<KeyT, ValueT>
+      <<<num_blocks, BLOCKSIZE_>>>(d_query, d_count, num_queries, gpu_context_);
+}
+
+template <typename KeyT, typename ValueT>
 void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::deleteIndividual(
     KeyT* d_key,
     uint32_t num_keys) {

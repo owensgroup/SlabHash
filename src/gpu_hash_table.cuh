@@ -44,6 +44,7 @@ class gpu_hash_table {
   ValueT* d_value_;
   KeyT* d_query_;
   ValueT* d_result_;
+  uint32_t* d_count_;
 
   gpu_hash_table(uint32_t max_keys,
                  uint32_t num_buckets,
@@ -73,6 +74,7 @@ class gpu_hash_table {
     }
     CHECK_CUDA_ERROR(cudaMalloc((void**)&d_query_, sizeof(KeyT) * max_keys_));
     CHECK_CUDA_ERROR(cudaMalloc((void**)&d_result_, sizeof(ValueT) * max_keys_));
+    CHECK_CUDA_ERROR(cudaMalloc((void**)&d_count_, sizeof(uint32_t) * max_keys_));
 
     // allocate an initialize the allocator:
     dynamic_allocator_ = new DynamicAllocatorT();
@@ -93,6 +95,7 @@ class gpu_hash_table {
     }
     CHECK_CUDA_ERROR(cudaFree(d_query_));
     CHECK_CUDA_ERROR(cudaFree(d_result_));
+    CHECK_CUDA_ERROR(cudaFree(d_count_));
 
     // delete the dynamic allocator:
     delete dynamic_allocator_;
@@ -191,6 +194,36 @@ class gpu_hash_table {
     return temp_time;
   }
 
+  float hash_count(KeyT* h_query, uint32_t* h_count, uint32_t num_queries) {
+    CHECK_CUDA_ERROR(cudaSetDevice(device_idx_));
+    CHECK_CUDA_ERROR(cudaMemcpy(
+        d_query_, h_query, sizeof(KeyT) * num_queries, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERROR(cudaMemset(d_result_, 0x00, sizeof(uint32_t) * num_queries));
+
+    float temp_time = 0.0f;
+
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    cudaEventRecord(start, 0);
+
+    // == calling slab hash's individual search:
+    slab_hash_->countIndividual(d_query_, d_count_, num_queries);
+    //==
+
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&temp_time, start, stop);
+
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+
+    CHECK_CUDA_ERROR(cudaMemcpy(
+        h_count, d_count_, sizeof(uint32_t) * num_queries, cudaMemcpyDeviceToHost));
+    cudaDeviceSynchronize();
+    return temp_time;
+  }
+  
   float hash_delete(KeyT* h_key, uint32_t num_keys) {
     CHECK_CUDA_ERROR(cudaSetDevice(device_idx_));
     CHECK_CUDA_ERROR(
