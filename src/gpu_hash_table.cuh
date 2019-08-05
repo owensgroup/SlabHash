@@ -207,7 +207,7 @@ class gpu_hash_table {
     cudaEventCreate(&stop);
     cudaEventRecord(start, 0);
 
-    // == calling slab hash's individual search:
+    // == calling slab hash's individual count:
     slab_hash_->countIndividual(d_query_, d_count_, num_queries);
     //==
 
@@ -223,7 +223,7 @@ class gpu_hash_table {
     cudaDeviceSynchronize();
     return temp_time;
   }
-  
+
   float hash_delete(KeyT* h_key, uint32_t num_keys) {
     CHECK_CUDA_ERROR(cudaSetDevice(device_idx_));
     CHECK_CUDA_ERROR(
