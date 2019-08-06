@@ -93,6 +93,15 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
                                              const uint32_t bucket_id,
                                              AllocatorContextT& local_allocator_context);
 
+  // threads in a warp cooperate with each other to insert a unique key (and its value)
+  // into the slab hash
+  __device__ __forceinline__ void insertPairUnique(bool& to_be_inserted,
+                                             const uint32_t& laneId,
+                                             const KeyT& myKey,
+                                             const ValueT& myValue,
+                                             const uint32_t bucket_id,
+                                             AllocatorContextT& local_allocator_context);
+
   // threads in a warp cooperate with each other to search for keys
   // if found, it returns the corresponding value, else SEARCH_NOT_FOUND
   // is returned
@@ -249,7 +258,7 @@ class GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
   std::string to_string();
   double computeLoadFactor(int flag);
 
-  void buildBulk(KeyT* d_key, ValueT* d_value, uint32_t num_keys);
+  void buildBulk(KeyT* d_key, ValueT* d_value, uint32_t num_keys, bool unique_keys = false);
   void searchIndividual(KeyT* d_query, ValueT* d_result, uint32_t num_queries);
   void searchBulk(KeyT* d_query, ValueT* d_result, uint32_t num_queries);
   void deleteIndividual(KeyT* d_key, uint32_t num_keys);

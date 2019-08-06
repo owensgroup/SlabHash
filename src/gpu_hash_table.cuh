@@ -134,7 +134,35 @@ class gpu_hash_table {
     cudaEventDestroy(stop);
     return temp_time;
   }
+  float hash_build(KeyT* h_key, ValueT* h_value, uint32_t num_keys, bool unique_keys) {
+    // moving key-values to the device:
+    CHECK_CUDA_ERROR(cudaSetDevice(device_idx_));
+    CHECK_CUDA_ERROR(
+        cudaMemcpy(d_key_, h_key, sizeof(KeyT) * num_keys, cudaMemcpyHostToDevice));
+    if (req_values_) {
+      CHECK_CUDA_ERROR(cudaMemcpy(
+          d_value_, h_value, sizeof(ValueT) * num_keys, cudaMemcpyHostToDevice));
+    }
 
+    float temp_time = 0.0f;
+
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+
+    cudaEventRecord(start, 0);
+
+    // calling slab-hash's bulk build procedure:
+    slab_hash_->buildBulk(d_key_, d_value_, num_keys, unique_keys);
+
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&temp_time, start, stop);
+
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+    return temp_time;
+  }
   float hash_search(KeyT* h_query, ValueT* h_result, uint32_t num_queries) {
     CHECK_CUDA_ERROR(cudaSetDevice(device_idx_));
     CHECK_CUDA_ERROR(cudaMemcpy(
