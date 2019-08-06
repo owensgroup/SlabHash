@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Saman Ashkiani
+ * Copyright 2019 University of California, Davis
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,11 +45,11 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::countKey(
     const uint32_t src_unit_data = (next == SlabHashT::A_INDEX_POINTER)
                                        ? *(getPointerFromBucket(src_bucket, laneId))
                                        : *(getPointerFromSlab(next, laneId));
-    int found_lanes = __popc(__ballot_sync(0xFFFFFFFF, src_unit_data == wanted_key) &
+    const int wanted_key_count = __popc(__ballot_sync(0xFFFFFFFF, src_unit_data == wanted_key) &
                            SlabHashT::REGULAR_NODE_KEY_MASK);
     
     if(laneId == src_lane) //count
-      myCount += found_lanes;
+      myCount += wanted_key_count;
 
     uint32_t next_ptr = __shfl_sync(0xFFFFFFFF, src_unit_data, 31, 32); //iterate
     if (next_ptr == SlabHashT::EMPTY_INDEX_POINTER){

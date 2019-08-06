@@ -110,9 +110,7 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
                                                 ValueT& myValue,
                                                 const uint32_t bucket_id);
 
-  // threads in a warp cooperate with each other to search for keys
-  // if found, it returns the corresponding value, else SEARCH_NOT_FOUND
-  // is returned
+  // threads in a warp cooperate with each other to count keys
   __device__ __forceinline__ void countKey(bool& to_be_searched,
                                             const uint32_t& laneId,
                                             const KeyT& myKey,

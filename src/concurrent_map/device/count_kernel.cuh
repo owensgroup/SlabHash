@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Saman Ashkiani
+ * Copyright 2019 University of California, Davis
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.

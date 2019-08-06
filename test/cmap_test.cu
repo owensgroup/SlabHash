@@ -183,7 +183,7 @@ TEST(BulkBuild, IndividualCount) {
   std::shuffle(h_query.begin(), h_query.end(), rng);
   std::vector<ValueT> cmap_results(num_queries);
 
-  // searching for the queries:
+  // getting count per query:
   cmap.hash_count(h_query.data(), cmap_results.data(), num_queries);
 
   // validating the results:
