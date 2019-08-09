@@ -45,12 +45,12 @@ __global__ void build_table_kernel(
     myBucket = slab_hash.computeBucket(myKey);
     to_insert = true;
   }
-  
+
   slab_hash.insertPair(to_insert, laneId, myKey, myValue, myBucket, local_allocator_ctx);
 }
 
 template <typename KeyT, typename ValueT>
-__global__ void build_unique_table_kernel(
+__global__ void build_table_with_unique_keys_kernel(
     KeyT* d_key,
     ValueT* d_value,
     uint32_t num_keys,
@@ -76,6 +76,7 @@ __global__ void build_unique_table_kernel(
     myBucket = slab_hash.computeBucket(myKey);
     to_insert = true;
   }
-  
-  slab_hash.insertPairUnique(to_insert, laneId, myKey, myValue, myBucket, local_allocator_ctx);
+
+  slab_hash.insertPairUnique(
+      to_insert, laneId, myKey, myValue, myBucket, local_allocator_ctx);
 }

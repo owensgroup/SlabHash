@@ -20,19 +20,23 @@ template <typename KeyT, typename ValueT>
 void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::buildBulk(
     KeyT* d_key,
     ValueT* d_value,
-    uint32_t num_keys,
-    bool unique_keys) {
+    uint32_t num_keys) {
   const uint32_t num_blocks = (num_keys + BLOCKSIZE_ - 1) / BLOCKSIZE_;
   // calling the kernel for bulk build:
   CHECK_CUDA_ERROR(cudaSetDevice(device_idx_));
-  if(unique_keys){
-    build_unique_table_kernel<KeyT, ValueT>
-        <<<num_blocks, BLOCKSIZE_>>>(d_key, d_value, num_keys, gpu_context_);
-  }
-  else{
-    build_table_kernel<KeyT, ValueT>
-        <<<num_blocks, BLOCKSIZE_>>>(d_key, d_value, num_keys, gpu_context_);
-  }      
+  build_table_kernel<KeyT, ValueT>
+      <<<num_blocks, BLOCKSIZE_>>>(d_key, d_value, num_keys, gpu_context_);
+}
+template <typename KeyT, typename ValueT>
+void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::buildBulkWithUniqueKeys(
+    KeyT* d_key,
+    ValueT* d_value,
+    uint32_t num_keys) {
+  const uint32_t num_blocks = (num_keys + BLOCKSIZE_ - 1) / BLOCKSIZE_;
+  // calling the kernel for bulk build:
+  CHECK_CUDA_ERROR(cudaSetDevice(device_idx_));
+  build_table_with_unique_keys_kernel<KeyT, ValueT>
+      <<<num_blocks, BLOCKSIZE_>>>(d_key, d_value, num_keys, gpu_context_);
 }
 template <typename KeyT, typename ValueT>
 void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::searchIndividual(

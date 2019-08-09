@@ -20,8 +20,8 @@
 #include <stdio.h>
 #include <cstdlib>
 #include <iostream>
-#include <unordered_map>
 #include <random>
+#include <unordered_map>
 
 #include "CommandLine.h"
 #include "gpu_hash_table.cuh"
@@ -139,18 +139,18 @@ TEST(BulkBuild, IndividualCount) {
   const uint32_t num_buckets = 12;
   const uint32_t max_count = 32;
 
-  //rng
+  // rng
   std::random_device rd;
   std::mt19937 rng(rd());
 
-  //random key counts
+  // random key counts
   uint32_t num_keys = 0;
   std::vector<uint32_t> h_count;
   h_count.reserve(num_unique);
   for (uint32_t i_key = 0; i_key < num_unique; i_key++) {
     uint32_t key_count = rng() % max_count;
     h_count.push_back(key_count);
-    num_keys+=key_count;
+    num_keys += key_count;
   }
 
   // creating key-value pairs:
@@ -206,18 +206,18 @@ TEST(UniqueBulkBuild, IndividualCount) {
   const uint32_t num_buckets = 12;
   const uint32_t max_count = 32;
 
-  //rng
+  // rng
   std::random_device rd;
   std::mt19937 rng(rd());
 
-  //random key counts
+  // random key counts
   uint32_t num_keys = 0;
   std::vector<uint32_t> h_count;
   h_count.reserve(num_unique);
   for (uint32_t i_key = 0; i_key < num_unique; i_key++) {
     uint32_t key_count = rng() % max_count;
     h_count.push_back(key_count);
-    num_keys+=key_count;
+    num_keys += key_count;
   }
 
   // creating key-value pairs:
@@ -242,7 +242,7 @@ TEST(UniqueBulkBuild, IndividualCount) {
       num_keys, num_buckets, g_gpu_device_idx, /*seed = */ 1);
 
   // building the unique-keys slab hash, and the host's data structure:
-  cmap.hash_build(h_key.data(), h_value.data(), h_key.size(), /*unique = */ true);
+  cmap.hash_build_with_unique_keys(h_key.data(), h_value.data(), h_key.size());
 
   // generating random queries
   const auto num_queries = num_unique;

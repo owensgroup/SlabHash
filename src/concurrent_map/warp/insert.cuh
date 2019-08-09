@@ -28,8 +28,8 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::insertPair(
     const uint32_t& laneId,
     const KeyT& myKey,
     const ValueT& myValue,
-    const uint32_t bucket_id, 
-  AllocatorContextT& local_allocator_ctx) {
+    const uint32_t bucket_id,
+    AllocatorContextT& local_allocator_ctx) {
   using SlabHashT = ConcurrentMapT<KeyT, ValueT>;
   uint32_t work_queue = 0;
   uint32_t last_work_queue = 0;
@@ -107,8 +107,8 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::insertPairUnique
     const uint32_t& laneId,
     const KeyT& myKey,
     const ValueT& myValue,
-    const uint32_t bucket_id, 
-  AllocatorContextT& local_allocator_ctx) {
+    const uint32_t bucket_id,
+    AllocatorContextT& local_allocator_ctx) {
   using SlabHashT = ConcurrentMapT<KeyT, ValueT>;
   uint32_t work_queue = 0;
   uint32_t last_work_queue = 0;
@@ -128,15 +128,14 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::insertPairUnique
 
     uint32_t isEmpty = (__ballot_sync(0xFFFFFFFF, src_unit_data == EMPTY_KEY)) &
                        SlabHashT::REGULAR_NODE_KEY_MASK;
-    
+
     uint32_t src_key = __shfl_sync(0xFFFFFFFF, myKey, src_lane, 32);
     uint32_t isExisting = (__ballot_sync(0xFFFFFFFF, src_unit_data == src_key)) &
-                       SlabHashT::REGULAR_NODE_KEY_MASK;
-    if(isExisting){ //key exist in the hash table
-      if(laneId == src_lane)
+                          SlabHashT::REGULAR_NODE_KEY_MASK;
+    if (isExisting) {  // key exist in the hash table
+      if (laneId == src_lane)
         to_be_inserted = false;
-    }
-    else{
+    } else {
       if (isEmpty == 0) {  // no empty slot available:
         uint32_t next_ptr = __shfl_sync(0xFFFFFFFF, src_unit_data, 31, 32);
         if (next_ptr == SlabHashT::EMPTY_INDEX_POINTER) {

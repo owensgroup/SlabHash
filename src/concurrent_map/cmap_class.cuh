@@ -34,7 +34,7 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
       : num_buckets_(0), hash_x_(0), hash_y_(0), d_table_(nullptr) {}
 
 #pragma hd_warning_disable
-      __host__ __device__ GpuSlabHashContext(
+  __host__ __device__ GpuSlabHashContext(
       GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>& rhs) {
     num_buckets_ = rhs.getNumBuckets();
     hash_x_ = rhs.getHashX();
@@ -95,12 +95,13 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
 
   // threads in a warp cooperate with each other to insert a unique key (and its value)
   // into the slab hash
-  __device__ __forceinline__ void insertPairUnique(bool& to_be_inserted,
-                                             const uint32_t& laneId,
-                                             const KeyT& myKey,
-                                             const ValueT& myValue,
-                                             const uint32_t bucket_id,
-                                             AllocatorContextT& local_allocator_context);
+  __device__ __forceinline__ void insertPairUnique(
+      bool& to_be_inserted,
+      const uint32_t& laneId,
+      const KeyT& myKey,
+      const ValueT& myValue,
+      const uint32_t bucket_id,
+      AllocatorContextT& local_allocator_context);
 
   // threads in a warp cooperate with each other to search for keys
   // if found, it returns the corresponding value, else SEARCH_NOT_FOUND
@@ -121,11 +122,11 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
 
   // threads in a warp cooperate with each other to count keys
   __device__ __forceinline__ void countKey(bool& to_be_searched,
-                                            const uint32_t& laneId,
-                                            const KeyT& myKey,
-                                            uint32_t& myCount,
-                                            const uint32_t bucket_id);
-  
+                                           const uint32_t& laneId,
+                                           const KeyT& myKey,
+                                           uint32_t& myCount,
+                                           const uint32_t bucket_id);
+
   // all threads within a warp cooperate with each other to delete
   // keys
   __device__ __forceinline__ void deleteKey(bool& to_be_deleted,
@@ -258,7 +259,8 @@ class GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
   std::string to_string();
   double computeLoadFactor(int flag);
 
-  void buildBulk(KeyT* d_key, ValueT* d_value, uint32_t num_keys, bool unique_keys = false);
+  void buildBulk(KeyT* d_key, ValueT* d_value, uint32_t num_keys);
+  void buildBulkWithUniqueKeys(KeyT* d_key, ValueT* d_value, uint32_t num_keys);
   void searchIndividual(KeyT* d_query, ValueT* d_result, uint32_t num_queries);
   void searchBulk(KeyT* d_query, ValueT* d_result, uint32_t num_queries);
   void deleteIndividual(KeyT* d_key, uint32_t num_keys);

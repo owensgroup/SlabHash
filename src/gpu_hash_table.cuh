@@ -134,7 +134,7 @@ class gpu_hash_table {
     cudaEventDestroy(stop);
     return temp_time;
   }
-  float hash_build(KeyT* h_key, ValueT* h_value, uint32_t num_keys, bool unique_keys) {
+  float hash_build_with_unique_keys(KeyT* h_key, ValueT* h_value, uint32_t num_keys) {
     // moving key-values to the device:
     CHECK_CUDA_ERROR(cudaSetDevice(device_idx_));
     CHECK_CUDA_ERROR(
@@ -153,7 +153,7 @@ class gpu_hash_table {
     cudaEventRecord(start, 0);
 
     // calling slab-hash's bulk build procedure:
-    slab_hash_->buildBulk(d_key_, d_value_, num_keys, unique_keys);
+    slab_hash_->buildBulkWithUniqueKeys(d_key_, d_value_, num_keys);
 
     cudaEventRecord(stop, 0);
     cudaEventSynchronize(stop);
