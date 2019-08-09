@@ -97,6 +97,7 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::insertPair(
 
 /*
  * each thread inserts a unique key (and its value) into the hash table
+ * if the key already exist in the hash table, it only keeps the first instance
  * it is assumed all threads within a warp are present and collaborating with
  * each other with a warp-cooperative work sharing (WCWS) strategy.
  */
