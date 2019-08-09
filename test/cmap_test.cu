@@ -20,8 +20,8 @@
 #include <stdio.h>
 #include <cstdlib>
 #include <iostream>
-#include <unordered_map>
 #include <random>
+#include <unordered_map>
 
 #include "CommandLine.h"
 #include "gpu_hash_table.cuh"
@@ -139,18 +139,18 @@ TEST(BulkBuild, IndividualCount) {
   const uint32_t num_buckets = 12;
   const uint32_t max_count = 32;
 
-  //rng
+  // rng
   std::random_device rd;
   std::mt19937 rng(rd());
 
-  //random key counts
+  // random key counts
   uint32_t num_keys = 0;
   std::vector<uint32_t> h_count;
   h_count.reserve(num_unique);
   for (uint32_t i_key = 0; i_key < num_unique; i_key++) {
     uint32_t key_count = rng() % max_count;
     h_count.push_back(key_count);
-    num_keys+=key_count;
+    num_keys += key_count;
   }
 
   // creating key-value pairs:
@@ -195,6 +195,73 @@ TEST(BulkBuild, IndividualCount) {
   for (uint32_t i = 0; i < num_queries; i++) {
     auto cmap_result = cmap_results[i];
     auto expected_result = count_map[h_query[i]];
+    ASSERT_EQ(expected_result, cmap_result);
+  }
+}
+
+TEST(UniqueBulkBuild, IndividualCount) {
+  using KeyT = uint32_t;
+  using ValueT = uint32_t;
+  const uint32_t num_unique = 2014;
+  const uint32_t num_buckets = 12;
+  const uint32_t max_count = 32;
+
+  // rng
+  std::random_device rd;
+  std::mt19937 rng(rd());
+
+  // random key counts
+  uint32_t num_keys = 0;
+  std::vector<uint32_t> h_count;
+  h_count.reserve(num_unique);
+  for (uint32_t i_key = 0; i_key < num_unique; i_key++) {
+    uint32_t key_count = rng() % max_count;
+    h_count.push_back(key_count);
+    num_keys += key_count;
+  }
+
+  // creating key-value pairs:
+  std::vector<KeyT> h_key;
+  h_key.reserve(num_keys);
+  std::vector<KeyT> h_value;
+  h_value.reserve(num_keys);
+  std::vector<KeyT> h_key_unique;
+  h_key_unique.reserve(num_unique);
+  for (uint32_t i_key = 0; i_key < num_unique; i_key++) {
+    KeyT myKey = 13 + i_key;
+    ValueT myValue = 1000 + myKey;
+    h_key_unique.push_back(myKey);
+    for (uint32_t i_count = 0; i_count < h_count[i_key]; i_count++) {
+      h_key.push_back(myKey);
+      h_value.push_back(myValue);
+    }
+  }
+
+  // creating the data structures:
+  gpu_hash_table<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> cmap(
+      num_keys, num_buckets, g_gpu_device_idx, /*seed = */ 1);
+
+  // building the unique-keys slab hash, and the host's data structure:
+  cmap.hash_build_with_unique_keys(h_key.data(), h_value.data(), h_key.size());
+
+  // generating random queries
+  const auto num_queries = num_unique;
+  std::vector<KeyT> h_query(h_key_unique);
+  std::shuffle(h_query.begin(), h_query.end(), rng);
+  std::vector<ValueT> cmap_results(num_queries);
+
+  // getting count per query:
+  cmap.hash_count(h_query.data(), cmap_results.data(), num_queries);
+
+  // validating the results:
+  std::unordered_map<KeyT, ValueT> count_map;
+  for (uint32_t i_key = 0; i_key < num_unique; i_key++) {
+    count_map.insert(std::make_pair(h_key_unique[i_key], h_count[i_key]));
+  }
+
+  for (uint32_t i = 0; i < num_queries; i++) {
+    auto cmap_result = cmap_results[i];
+    auto expected_result = (count_map[h_query[i]] != 0) ? 1 : 0;
     ASSERT_EQ(expected_result, cmap_result);
   }
 }
