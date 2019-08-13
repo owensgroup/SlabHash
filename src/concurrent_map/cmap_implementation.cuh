@@ -147,7 +147,7 @@ double GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::computeLoadFacto
     printf("## Total elements stored: %d (%lu bytes).\n",
            total_elements_stored,
            total_elements_stored * (sizeof(KeyT) + sizeof(ValueT)));
-    printf("## Total buckets used: %d.\n", total_slabs_used);
+    printf("## Total number of slabs used: %d.\n", total_slabs_used);
   }
 
   // computing load factor
