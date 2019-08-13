@@ -46,16 +46,16 @@ __global__ void bucket_count_kernel(
   uint32_t src_unit_data = *slab_hash.getPointerFromBucket(wid, laneId);
 
   pairs_count += __popc(__ballot_sync(0xFFFFFFFF, src_unit_data != EMPTY_KEY) &
-                  SlabHashT::REGULAR_NODE_KEY_MASK);
+                        SlabHashT::REGULAR_NODE_KEY_MASK);
   uint32_t next = __shfl_sync(0xFFFFFFFF, src_unit_data, 31, 32);
 
   while (next != SlabHashT::EMPTY_INDEX_POINTER) {
     // counting pairs
     src_unit_data = *slab_hash.getPointerFromSlab(next, laneId);
     pairs_count += __popc(__ballot_sync(0xFFFFFFFF, src_unit_data != EMPTY_KEY) &
-                    SlabHashT::REGULAR_NODE_KEY_MASK);
+                          SlabHashT::REGULAR_NODE_KEY_MASK);
     next = __shfl_sync(0xFFFFFFFF, src_unit_data, 31, 32);
-    //counting slabs
+    // counting slabs
     slabs_count++;
   }
   // writing back the results:

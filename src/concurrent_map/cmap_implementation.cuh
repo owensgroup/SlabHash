@@ -113,20 +113,22 @@ double GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::computeLoadFacto
     int flag = 0) {
   uint32_t* h_bucket_pairs_count = new uint32_t[num_buckets_];
   uint32_t* d_bucket_pairs_count;
-  CHECK_CUDA_ERROR(cudaMalloc((void**)&d_bucket_pairs_count, sizeof(uint32_t) * num_buckets_));
+  CHECK_CUDA_ERROR(
+      cudaMalloc((void**)&d_bucket_pairs_count, sizeof(uint32_t) * num_buckets_));
   CHECK_CUDA_ERROR(cudaMemset(d_bucket_pairs_count, 0, sizeof(uint32_t) * num_buckets_));
 
   uint32_t* h_bucket_slabs_count = new uint32_t[num_buckets_];
   uint32_t* d_bucket_slabs_count;
-  CHECK_CUDA_ERROR(cudaMalloc((void**)&d_bucket_slabs_count, sizeof(uint32_t) * num_buckets_));
+  CHECK_CUDA_ERROR(
+      cudaMalloc((void**)&d_bucket_slabs_count, sizeof(uint32_t) * num_buckets_));
   CHECK_CUDA_ERROR(cudaMemset(d_bucket_slabs_count, 0, sizeof(uint32_t) * num_buckets_));
 
   //---------------------------------
   // counting the number of inserted elements:
   const uint32_t blocksize = 128;
   const uint32_t num_blocks = (num_buckets_ * 32 + blocksize - 1) / blocksize;
-  bucket_count_kernel<KeyT, ValueT>
-      <<<num_blocks, blocksize>>>(gpu_context_, d_bucket_pairs_count, d_bucket_slabs_count, num_buckets_);
+  bucket_count_kernel<KeyT, ValueT><<<num_blocks, blocksize>>>(
+      gpu_context_, d_bucket_pairs_count, d_bucket_slabs_count, num_buckets_);
   CHECK_CUDA_ERROR(cudaMemcpy(h_bucket_pairs_count,
                               d_bucket_pairs_count,
                               sizeof(uint32_t) * num_buckets_,
@@ -137,18 +139,16 @@ double GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::computeLoadFacto
                               cudaMemcpyDeviceToHost));
   int total_elements_stored = 0;
   int total_slabs_used = 0;
-  for (int i = 0; i < num_buckets_; i++){
+  for (int i = 0; i < num_buckets_; i++) {
     total_elements_stored += h_bucket_pairs_count[i];
     total_slabs_used += h_bucket_slabs_count[i];
-  } 
+  }
   if (flag) {
     printf("## Total elements stored: %d (%lu bytes).\n",
            total_elements_stored,
            total_elements_stored * (sizeof(KeyT) + sizeof(ValueT)));
-    printf("## Total buckets used: %d.\n",
-           total_slabs_used);
+    printf("## Total buckets used: %d.\n", total_slabs_used);
   }
-
 
   // computing load factor
   double load_factor = double(total_elements_stored * (sizeof(KeyT) + sizeof(ValueT))) /
