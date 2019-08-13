@@ -17,8 +17,9 @@
 #pragma once
 
 /*
- * This kernel can be used to compute total number of elements within each
- * bucket. The final results per bucket is stored in d_count_result array
+ * This kernel can be used to compute the total number of elements and the total number of
+ * slabs per bucket. The final results per bucket is stored in d_pairs_count_result and
+ * d_slabs_count_result arrays respectively
  */
 template <typename KeyT, typename ValueT>
 __global__ void bucket_count_kernel(
