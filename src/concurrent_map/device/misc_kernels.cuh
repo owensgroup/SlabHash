@@ -17,13 +17,15 @@
 #pragma once
 
 /*
- * This kernel can be used to compute total number of elements within each
- * bucket. The final results per bucket is stored in d_count_result array
+ * This kernel can be used to compute the total number of elements and the total number of
+ * slabs per bucket. The final results per bucket is stored in d_pairs_count_result and
+ * d_slabs_count_result arrays respectively
  */
 template <typename KeyT, typename ValueT>
 __global__ void bucket_count_kernel(
     GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> slab_hash,
-    uint32_t* d_count_result,
+    uint32_t* d_pairs_count_result,
+    uint32_t* d_slabs_count_result,
     uint32_t num_buckets) {
   using SlabHashT = ConcurrentMapT<KeyT, ValueT>;
   // global warp ID
@@ -39,44 +41,27 @@ __global__ void bucket_count_kernel(
   // initializing the memory allocator on each warp:
   slab_hash.getAllocatorContext().initAllocator(tid, laneId);
 
-  uint32_t count = 0;
+  uint32_t pairs_count = 0;
+  uint32_t slabs_count = 1;
 
   uint32_t src_unit_data = *slab_hash.getPointerFromBucket(wid, laneId);
 
-  count += __popc(__ballot_sync(0xFFFFFFFF, src_unit_data != EMPTY_KEY) &
-                  SlabHashT::REGULAR_NODE_KEY_MASK);
+  pairs_count += __popc(__ballot_sync(0xFFFFFFFF, src_unit_data != EMPTY_KEY) &
+                        SlabHashT::REGULAR_NODE_KEY_MASK);
   uint32_t next = __shfl_sync(0xFFFFFFFF, src_unit_data, 31, 32);
 
   while (next != SlabHashT::EMPTY_INDEX_POINTER) {
+    // counting pairs
     src_unit_data = *slab_hash.getPointerFromSlab(next, laneId);
-    count += __popc(__ballot_sync(0xFFFFFFFF, src_unit_data != EMPTY_KEY) &
-                    SlabHashT::REGULAR_NODE_KEY_MASK);
+    pairs_count += __popc(__ballot_sync(0xFFFFFFFF, src_unit_data != EMPTY_KEY) &
+                          SlabHashT::REGULAR_NODE_KEY_MASK);
     next = __shfl_sync(0xFFFFFFFF, src_unit_data, 31, 32);
+    // counting slabs
+    slabs_count++;
   }
   // writing back the results:
   if (laneId == 0) {
-    d_count_result[wid] = count;
-  }
-}
-
-/*
- * This kernel goes through all allocated bitmaps for a slab_hash's allocator
- * and store number of allocated slabs.
- * TODO: this should be moved into allocator's codebase (violation of layers)
- */
-template <typename KeyT, typename ValueT>
-__global__ void compute_stats_allocators(
-    uint32_t* d_count_super_block,
-    GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> slab_hash) {
-  uint32_t tid = threadIdx.x + blockIdx.x * blockDim.x;
-
-  int num_bitmaps = slab_hash.getAllocatorContext().NUM_MEM_BLOCKS_PER_SUPER_BLOCK_ * 32;
-  if (tid >= num_bitmaps) {
-    return;
-  }
-
-  for (int i = 0; i < slab_hash.getAllocatorContext().num_super_blocks_; i++) {
-    uint32_t read_bitmap = *(slab_hash.getAllocatorContext().getPointerForBitmap(i, tid));
-    atomicAdd(&d_count_super_block[i], __popc(read_bitmap));
+    d_pairs_count_result[wid] = pairs_count;
+    d_slabs_count_result[wid] = slabs_count;
   }
 }

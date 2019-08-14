@@ -111,80 +111,55 @@ std::string GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::to_string()
 template <typename KeyT, typename ValueT>
 double GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::computeLoadFactor(
     int flag = 0) {
-  uint32_t* h_bucket_count = new uint32_t[num_buckets_];
-  uint32_t* d_bucket_count;
-  CHECK_CUDA_ERROR(cudaMalloc((void**)&d_bucket_count, sizeof(uint32_t) * num_buckets_));
-  CHECK_CUDA_ERROR(cudaMemset(d_bucket_count, 0, sizeof(uint32_t) * num_buckets_));
+  uint32_t* h_bucket_pairs_count = new uint32_t[num_buckets_];
+  uint32_t* d_bucket_pairs_count;
+  CHECK_CUDA_ERROR(
+      cudaMalloc((void**)&d_bucket_pairs_count, sizeof(uint32_t) * num_buckets_));
+  CHECK_CUDA_ERROR(cudaMemset(d_bucket_pairs_count, 0, sizeof(uint32_t) * num_buckets_));
 
-  const auto& dynamic_alloc = gpu_context_.getAllocatorContext();
-  const uint32_t num_super_blocks = dynamic_alloc.num_super_blocks_;
-  uint32_t* h_count_super_blocks = new uint32_t[num_super_blocks];
-  uint32_t* d_count_super_blocks;
+  uint32_t* h_bucket_slabs_count = new uint32_t[num_buckets_];
+  uint32_t* d_bucket_slabs_count;
   CHECK_CUDA_ERROR(
-      cudaMalloc((void**)&d_count_super_blocks, sizeof(uint32_t) * num_super_blocks));
-  CHECK_CUDA_ERROR(
-      cudaMemset(d_count_super_blocks, 0, sizeof(uint32_t) * num_super_blocks));
+      cudaMalloc((void**)&d_bucket_slabs_count, sizeof(uint32_t) * num_buckets_));
+  CHECK_CUDA_ERROR(cudaMemset(d_bucket_slabs_count, 0, sizeof(uint32_t) * num_buckets_));
+
   //---------------------------------
   // counting the number of inserted elements:
   const uint32_t blocksize = 128;
   const uint32_t num_blocks = (num_buckets_ * 32 + blocksize - 1) / blocksize;
-  bucket_count_kernel<KeyT, ValueT>
-      <<<num_blocks, blocksize>>>(gpu_context_, d_bucket_count, num_buckets_);
-  CHECK_CUDA_ERROR(cudaMemcpy(h_bucket_count,
-                              d_bucket_count,
+  bucket_count_kernel<KeyT, ValueT><<<num_blocks, blocksize>>>(
+      gpu_context_, d_bucket_pairs_count, d_bucket_slabs_count, num_buckets_);
+  CHECK_CUDA_ERROR(cudaMemcpy(h_bucket_pairs_count,
+                              d_bucket_pairs_count,
                               sizeof(uint32_t) * num_buckets_,
                               cudaMemcpyDeviceToHost));
-
+  CHECK_CUDA_ERROR(cudaMemcpy(h_bucket_slabs_count,
+                              d_bucket_slabs_count,
+                              sizeof(uint32_t) * num_buckets_,
+                              cudaMemcpyDeviceToHost));
   int total_elements_stored = 0;
-  for (int i = 0; i < num_buckets_; i++)
-    total_elements_stored += h_bucket_count[i];
-
+  int total_slabs_used = 0;
+  for (int i = 0; i < num_buckets_; i++) {
+    total_elements_stored += h_bucket_pairs_count[i];
+    total_slabs_used += h_bucket_slabs_count[i];
+  }
   if (flag) {
     printf("## Total elements stored: %d (%lu bytes).\n",
            total_elements_stored,
            total_elements_stored * (sizeof(KeyT) + sizeof(ValueT)));
+    printf("## Total number of slabs used: %d.\n", total_slabs_used);
   }
 
-  // counting total number of allocated memory units:
-  int num_mem_units = dynamic_alloc.NUM_MEM_BLOCKS_PER_SUPER_BLOCK_ * 32;
-  int num_cuda_blocks = (num_mem_units + blocksize - 1) / blocksize;
-  compute_stats_allocators<<<num_cuda_blocks, blocksize>>>(d_count_super_blocks,
-                                                           gpu_context_);
-
-  CHECK_CUDA_ERROR(cudaMemcpy(h_count_super_blocks,
-                              d_count_super_blocks,
-                              sizeof(uint32_t) * num_super_blocks,
-                              cudaMemcpyDeviceToHost));
-
-  // printing stats per super block:
-  if (flag == 1) {
-    int total_allocated = 0;
-    for (int i = 0; i < num_super_blocks; i++) {
-      printf("(%d: %d -- %f) \t",
-             i,
-             h_count_super_blocks[i],
-             double(h_count_super_blocks[i]) / double(1024 * num_mem_units / 32));
-      if (i % 4 == 3)
-        printf("\n");
-      total_allocated += h_count_super_blocks[i];
-    }
-    printf("\n");
-    printf("Total number of allocated memory units: %d\n", total_allocated);
-  }
   // computing load factor
-  int total_mem_units = num_buckets_;
-  for (int i = 0; i < num_super_blocks; i++)
-    total_mem_units += h_count_super_blocks[i];
-
   double load_factor = double(total_elements_stored * (sizeof(KeyT) + sizeof(ValueT))) /
-                       double(total_mem_units * WARP_WIDTH_ * sizeof(uint32_t));
+                       double(total_slabs_used * WARP_WIDTH_ * sizeof(uint32_t));
 
-  if (d_count_super_blocks)
-    CHECK_ERROR(cudaFree(d_count_super_blocks));
-  if (d_bucket_count)
-    CHECK_ERROR(cudaFree(d_bucket_count));
-  delete[] h_bucket_count;
-  delete[] h_count_super_blocks;
+  if (d_bucket_pairs_count)
+    CHECK_ERROR(cudaFree(d_bucket_pairs_count));
+  if (d_bucket_slabs_count)
+    CHECK_ERROR(cudaFree(d_bucket_slabs_count));
+  delete[] h_bucket_pairs_count;
+  delete[] h_bucket_slabs_count;
 
   return load_factor;
 }
