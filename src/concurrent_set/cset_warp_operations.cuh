@@ -22,7 +22,7 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentSet>::insertKey(
     bool& to_be_inserted,
     const uint32_t& laneId,
     const KeyT& myKey,
-    const uint32_t bucket_id, 
+    const uint32_t bucket_id,
     AllocatorContextT& local_allocator_ctx) {
   using SlabHashT = ConcurrentSetT<KeyT>;
   uint32_t work_queue = 0;
