@@ -84,7 +84,7 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentSet> {
 
   // threads in a warp cooperate with each other to insert keys
   // into the slab hash set
-  __device__ __forceinline__ void insertKey(bool& to_be_inserted,
+  __device__ __forceinline__ bool insertKey(bool& to_be_inserted,
                                             const uint32_t& laneId,
                                             const KeyT& myKey,
                                             const uint32_t bucket_id,

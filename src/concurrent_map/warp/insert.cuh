@@ -100,9 +100,10 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::insertPair(
  * if the key already exist in the hash table, it only keeps the first instance
  * it is assumed all threads within a warp are present and collaborating with
  * each other with a warp-cooperative work sharing (WCWS) strategy.
+ * returns true only if a new key was inserted into the hash table
  */
 template <typename KeyT, typename ValueT>
-__device__ __forceinline__ void
+__device__ __forceinline__ bool
 GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::insertPairUnique(
     bool& to_be_inserted,
     const uint32_t& laneId,
@@ -114,7 +115,7 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::insertPairUnique
   uint32_t work_queue = 0;
   uint32_t last_work_queue = 0;
   uint32_t next = SlabHashT::A_INDEX_POINTER;
-
+  bool new_insertion = false;
   while ((work_queue = __ballot_sync(0xFFFFFFFF, to_be_inserted))) {
     // to know whether it is a base node, or a regular node
     next = (last_work_queue != work_queue) ? SlabHashT::A_INDEX_POINTER
@@ -176,9 +177,11 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::insertPairUnique
                                 reinterpret_cast<const unsigned char*>(&myKey)));
           if (old_key_value_pair == EMPTY_PAIR_64)
             to_be_inserted = false;  // successful insertion
+            new_insertion = true;
         }
       }
     }
     last_work_queue = work_queue;
   }
+  return new_insertion;
 }

@@ -17,7 +17,7 @@
 #pragma once
 
 template <typename KeyT, typename ValueT>
-__device__ __forceinline__ void
+__device__ __forceinline__ bool
 GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentSet>::insertKey(
     bool& to_be_inserted,
     const uint32_t& laneId,
@@ -28,6 +28,7 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentSet>::insertKey(
   uint32_t work_queue = 0;
   uint32_t last_work_queue = 0;
   uint32_t next = SlabHashT::A_INDEX_POINTER;
+  bool new_insertion = false;
 
   while ((work_queue = __ballot_sync(0xFFFFFFFF, to_be_inserted))) {
     // to know whether it is a base node, or a regular node
@@ -78,13 +79,15 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentSet>::insertKey(
                             EMPTY_KEY,
                             *reinterpret_cast<const uint32_t*>(
                                 reinterpret_cast<const unsigned char*>(&myKey)));
-        if ((old_key == EMPTY_KEY) || (old_key == src_key)) {
+        new_insertion = (old_key == EMPTY_KEY);
+        if (new_insertion || (old_key == src_key)) {
           to_be_inserted = false;  // succesful insertion
         }
       }
     }
     last_work_queue = work_queue;
   }
+  return new_insertion;
 }
 
 // ========
