@@ -95,7 +95,7 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
 
   // threads in a warp cooperate with each other to insert a unique key (and its value)
   // into the slab hash
-  __device__ __forceinline__ void insertPairUnique(
+  __device__ __forceinline__ bool insertPairUnique(
       bool& to_be_inserted,
       const uint32_t& laneId,
       const KeyT& myKey,
