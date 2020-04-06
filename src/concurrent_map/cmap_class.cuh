@@ -129,7 +129,7 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
 
   // all threads within a warp cooperate with each other to delete
   // keys
-  __device__ __forceinline__ void deleteKey(bool& to_be_deleted,
+  __device__ __forceinline__ bool deleteKey(bool& to_be_deleted,
                                             const uint32_t& laneId,
                                             const KeyT& myKey,
                                             const uint32_t bucket_id);
