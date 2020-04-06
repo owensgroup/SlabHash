@@ -57,7 +57,8 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::deleteKey(
       uint32_t next_ptr = __shfl_sync(0xFFFFFFFF, src_unit_data, 31, 32);
       if (next_ptr == SlabHashT::EMPTY_INDEX_POINTER) {
         // not found:
-        to_be_deleted = false;
+        if (laneId == src_lane)
+          to_be_deleted = false;
       } else {
         next = next_ptr;
       }
