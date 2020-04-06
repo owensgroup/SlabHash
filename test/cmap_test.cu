@@ -266,6 +266,70 @@ TEST(UniqueBulkBuild, IndividualCount) {
   }
 }
 
+TEST(BulkBuild, IndividualDelete) {
+  using KeyT = uint32_t;
+  using ValueT = uint32_t;
+  const uint32_t num_keys = 137;
+  const uint32_t num_buckets = 2;
+  // creating the data structures:
+  gpu_hash_table<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> cmap(
+      num_keys, num_buckets, g_gpu_device_idx, /*seed = */ 1);
+
+  // creating key-value pairs:
+  std::vector<KeyT> h_key;
+  h_key.reserve(num_keys);
+  std::vector<ValueT> h_value;
+  h_value.reserve(num_keys);
+  for (uint32_t i_key = 0; i_key < num_keys; i_key++) {
+    h_key.push_back(13 + i_key);
+    h_value.push_back(1000 + h_key.back());
+  }
+
+  // building the slab hash:
+  cmap.hash_build(h_key.data(), h_value.data(), h_key.size());
+
+  // generating random keys to delete:
+  const auto num_deletion = num_keys;
+  const auto extend_fact = 4;
+  std::random_device rd;
+  std::mt19937 rng(rd());
+  std::vector<KeyT> h_deleted_keys;
+  h_deleted_keys.reserve(num_deletion * extend_fact);
+  for (uint32_t i_key = 0; i_key < num_deletion * extend_fact; i_key++) {
+    h_deleted_keys.push_back(13 + i_key);
+  }
+  std::shuffle(h_deleted_keys.begin(), h_deleted_keys.end(), rng);
+
+  // delete the keys:
+  cmap.hash_delete(h_deleted_keys.data(), num_deletion);
+
+  // query all keys:
+  const auto num_queries = num_keys;
+  std::vector<KeyT> h_query(h_key);
+  std::vector<ValueT> cmap_results(num_queries);
+
+  // searching for the queries:
+  cmap.hash_search_bulk(h_query.data(), cmap_results.data(), num_queries);
+
+  // validating the results:
+  std::unordered_map<KeyT, ValueT> hash_map;
+  for (uint32_t i_key = 0; i_key < num_keys; i_key++) {
+    hash_map.insert(std::make_pair(h_key[i_key], h_value[i_key]));
+  }
+  for (uint32_t i_key = 0; i_key < num_deletion; i_key++) {
+    hash_map.erase(h_deleted_keys[i_key]);
+  }
+
+  for (uint32_t i = 0; i < num_queries; i++) {
+    auto cmap_result = cmap_results[i];
+    auto expected_result_it = hash_map.find(h_query[i]);
+    auto expected_result = expected_result_it == hash_map.end()
+                               ? SEARCH_NOT_FOUND
+                               : expected_result_it->second;
+    ASSERT_EQ(expected_result, cmap_result);
+  }
+}
+
 int main(int argc, char** argv) {
   if (cmdOptionExists(argv, argc + argv, "-device")) {
     g_gpu_device_idx = atoi(getCmdOption(argv, argv + argc, "-device"));
