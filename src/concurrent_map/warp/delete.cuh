@@ -17,18 +17,19 @@
 #pragma once
 
 template <typename KeyT, typename ValueT>
-__device__ __forceinline__ void
+__device__ __forceinline__ bool
 GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::deleteKey(
     bool& to_be_deleted,
     const uint32_t& laneId,
     const KeyT& myKey,
     const uint32_t bucket_id) {
-  // delete all instances of key
+  // delete the first instance of key
 
   using SlabHashT = ConcurrentMapT<KeyT, ValueT>;
   uint32_t work_queue = 0;
   uint32_t last_work_queue = 0;
   uint32_t next = SlabHashT::A_INDEX_POINTER;
+  bool successful_deletion = false;
 
   while ((work_queue = __ballot_sync(0xFFFFFFFF, to_be_deleted))) {
     // to know whether it is a base node, or a regular node
@@ -68,11 +69,14 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::deleteKey(
         uint32_t* p = (next == SlabHashT::A_INDEX_POINTER)
                           ? getPointerFromBucket(src_bucket, dest_lane)
                           : getPointerFromSlab(next, dest_lane);
-        // deleting that item (no atomics)
-        *(reinterpret_cast<uint64_t*>(p)) = EMPTY_PAIR_64;
+
+        uint64_t old_pair = atomicExch((unsigned long long int*)p, EMPTY_PAIR_64);
+        uint32_t deleted_key = (old_pair & 0x00000000FFFFFFFFLL);
+        successful_deletion = deleted_key == src_key;
         to_be_deleted = false;
       }
     }
     last_work_queue = work_queue;
   }
+  return successful_deletion;
 }
