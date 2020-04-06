@@ -71,7 +71,7 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::deleteKey(
                           : getPointerFromSlab(next, dest_lane);
 
         uint64_t old_pair = atomicExch((unsigned long long int*)p, EMPTY_PAIR_64);
-        uint32_t deleted_key = (old_pair & 0x00000000FFFFFFFFLL);
+        uint32_t deleted_key = static_cast<uint32_t>(old_pair);
         successful_deletion = deleted_key == src_key;
         to_be_deleted = false;
       }
