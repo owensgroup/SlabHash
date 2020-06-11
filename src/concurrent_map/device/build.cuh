@@ -20,6 +20,8 @@
  */
 template <typename KeyT, typename ValueT>
 __global__ void build_table_kernel(
+    int* d_retry,
+    bool* d_success,
     KeyT* d_key,
     ValueT* d_value,
     uint32_t num_keys,
@@ -34,19 +36,23 @@ __global__ void build_table_kernel(
   AllocatorContextT local_allocator_ctx(slab_hash.getAllocatorContext());
   local_allocator_ctx.initAllocator(tid, laneId);
 
+  bool mySuccess = true;
   KeyT myKey = 0;
   ValueT myValue = 0;
   uint32_t myBucket = 0;
   bool to_insert = false;
 
   if (tid < num_keys) {
+    mySuccess = d_success[tid];
     myKey = d_key[tid];
     myValue = d_value[tid];
     myBucket = slab_hash.computeBucket(myKey);
-    to_insert = true;
+    to_insert = !mySuccess;
   }
 
-  slab_hash.insertPair(to_insert, laneId, myKey, myValue, myBucket, local_allocator_ctx);
+  slab_hash.insertPair(mySuccess, to_insert, laneId, myKey, myValue, myBucket, local_allocator_ctx);
+  d_success[tid] = mySuccess;
+  atomicCAS(d_retry, 0, (int)!mySuccess); // if any key was not successful, we need to resize and retry
 }
 
 template <typename KeyT, typename ValueT>

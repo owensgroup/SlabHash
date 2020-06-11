@@ -86,7 +86,8 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
 
   // threads in a warp cooperate with each other to insert key-value pairs
   // into the slab hash
-  __device__ __forceinline__ void insertPair(bool& to_be_inserted,
+  __device__ __forceinline__ void insertPair(bool& mySuccess,
+                                             bool& to_be_inserted,
                                              const uint32_t& laneId,
                                              const KeyT& myKey,
                                              const ValueT& myValue,
@@ -245,9 +246,13 @@ class GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
       hf_ = {0u, 0u};
     }
 
+    std::cout << "Initializing context params " << std::endl;
+
     // initializing the gpu_context_:
     gpu_context_.initParameters(
         num_buckets_, hf_.x, hf_.y, d_table_, dynamic_allocator_->getContextPtr());
+
+    std::cout << "Done initializing context params" << std::endl;
   }
 
   ~GpuSlabHash() {

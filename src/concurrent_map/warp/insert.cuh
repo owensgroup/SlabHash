@@ -24,6 +24,7 @@
 template <typename KeyT, typename ValueT>
 __device__ __forceinline__ void
 GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::insertPair(
+    bool& mySuccess,
     bool& to_be_inserted,
     const uint32_t& laneId,
     const KeyT& myKey,
@@ -54,6 +55,10 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::insertPair(
       if (next_ptr == SlabHashT::EMPTY_INDEX_POINTER) {
         // allocate a new node:
         uint32_t new_node_ptr = allocateSlab(local_allocator_ctx, laneId);
+        if(new_node_ptr == 0xFFFFFFFF) { // could not allocate a new slab: pool size needs to be increased
+          mySuccess = true; // signal that this key needs to be reinserted 
+          to_be_inserted = false;
+        }
 
         // TODO: experiment if it's better to use lane 0 instead
         if (laneId == 31) {
@@ -88,7 +93,8 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::insertPair(
                           *reinterpret_cast<const uint32_t*>(
                               reinterpret_cast<const unsigned char*>(&myKey)));
         if (old_key_value_pair == EMPTY_PAIR_64)
-          to_be_inserted = false;  // succesfful insertion
+          mySuccess = true;
+          to_be_inserted = false;  // successful insertion
       }
     }
     last_work_queue = work_queue;
