@@ -67,6 +67,10 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
     global_allocator_ctx_ = *allocator_ctx;
   }
 
+  __host__ void updateAllocatorContext(AllocatorContextT* allocator_ctx) {
+    global_allocator_ctx_ = *allocator_ctx;
+  }
+
   __device__ __host__ __forceinline__ AllocatorContextT& getAllocatorContext() {
     return global_allocator_ctx_;
   }

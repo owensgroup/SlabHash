@@ -58,6 +58,7 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::insertPair(
         if(new_node_ptr == 0xFFFFFFFF) { // could not allocate a new slab: pool size needs to be increased
           mySuccess = false; // signal that this key needs to be reinserted 
           to_be_inserted = false;
+          continue;
         }
 
         // TODO: experiment if it's better to use lane 0 instead
