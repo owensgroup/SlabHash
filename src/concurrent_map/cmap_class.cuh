@@ -250,13 +250,9 @@ class GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
       hf_ = {0u, 0u};
     }
 
-    std::cout << "Initializing context params " << std::endl;
-
     // initializing the gpu_context_:
     gpu_context_.initParameters(
         num_buckets_, hf_.x, hf_.y, d_table_, dynamic_allocator_->getContextPtr());
-
-    std::cout << "Done initializing context params" << std::endl;
   }
 
   ~GpuSlabHash() {

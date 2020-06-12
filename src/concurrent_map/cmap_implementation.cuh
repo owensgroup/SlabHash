@@ -36,7 +36,6 @@ void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::buildBulk(
   const uint32_t num_blocks = (num_keys + BLOCKSIZE_ - 1) / BLOCKSIZE_;
   CHECK_CUDA_ERROR(cudaSetDevice(device_idx_));
   while(h_retry) {
-    std::cout << "Calling build kernel" << std::endl;
     // calling the kernel for bulk build:
     build_table_kernel<KeyT, ValueT>
         <<<num_blocks, BLOCKSIZE_>>>(d_retry, d_success, d_key, d_value, num_keys, gpu_context_);
@@ -54,13 +53,10 @@ void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::buildBulk(
     std::cout << "numfalse " << num_false << std::endl;
     */
 
-    std::cout << "Evaluating need to resize" << std::endl;
     // resize the pool here if necessary
     if(h_retry) {
-      std::cout << "Resizing pool" << std::endl;
       dynamic_allocator_->growPool();
       gpu_context_.updateAllocatorContext(dynamic_allocator_->getContextPtr());
-      std::cout << "Done resizing pool" << std::endl;
     }
     CHECK_CUDA_ERROR(cudaMemset((void*)d_retry, 0x00, sizeof(int)));
   }
