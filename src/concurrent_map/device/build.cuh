@@ -51,8 +51,11 @@ __global__ void build_table_kernel(
   }
 
   slab_hash.insertPair(mySuccess, to_insert, laneId, myKey, myValue, myBucket, local_allocator_ctx);
-  d_success[tid] = mySuccess;
-  atomicCAS(d_retry, 0, (int)!mySuccess); // if any key was not successful, we need to resize and retry
+  
+  if (tid < num_keys) {
+    d_success[tid] = mySuccess;
+    atomicCAS(d_retry, 0, (int)!mySuccess); // if any key was not successful, we need to resize and retry
+  }
 }
 
 template <typename KeyT, typename ValueT>

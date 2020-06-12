@@ -31,31 +31,13 @@ void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::buildBulk(
   CHECK_CUDA_ERROR(cudaMemset((void*)d_success, 0x00, num_keys * sizeof(bool)));
 
   const uint32_t num_blocks = (num_keys + BLOCKSIZE_ - 1) / BLOCKSIZE_;
-
-
-
-
-  bool *h_success = (bool*) malloc(num_keys * sizeof(bool));
-
-
-
-
-
   while(h_retry) {
     // calling the kernel for bulk build:
     CHECK_CUDA_ERROR(cudaSetDevice(device_idx_));
     build_table_kernel<KeyT, ValueT>
         <<<num_blocks, BLOCKSIZE_>>>(d_retry, d_success, d_key, d_value, num_keys, gpu_context_);
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
     CHECK_CUDA_ERROR(cudaMemcpy(&h_retry, d_retry, sizeof(int), cudaMemcpyDeviceToHost));
-
-    //
-    CHECK_CUDA_ERROR(cudaMemcpy(h_success, d_success, num_keys * sizeof(bool), cudaMemcpyDeviceToHost));
-    for(auto i = 0; i < num_keys; ++i) {
-      if(h_success[i] == false) {
-        std::cout << "Key " << i << " evaluated to false" << std::endl;
-        break;
-      }
-    }
 
     std::cout << "Evaluating need to resize" << std::endl;
     // resize the pool here if necessary
@@ -63,6 +45,7 @@ void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::buildBulk(
     CHECK_CUDA_ERROR(cudaMemset((void*)d_retry, 0x00, sizeof(int)));
   }
 }
+
 template <typename KeyT, typename ValueT>
 void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::buildBulkWithUniqueKeys(
     KeyT* d_key,
@@ -74,6 +57,7 @@ void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::buildBulkWithUniqu
   build_table_with_unique_keys_kernel<KeyT, ValueT>
       <<<num_blocks, BLOCKSIZE_>>>(d_key, d_value, num_keys, gpu_context_);
 }
+
 template <typename KeyT, typename ValueT>
 void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::searchIndividual(
     KeyT* d_query,

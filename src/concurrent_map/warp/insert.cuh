@@ -56,7 +56,7 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::insertPair(
         // allocate a new node:
         uint32_t new_node_ptr = allocateSlab(local_allocator_ctx, laneId);
         if(new_node_ptr == 0xFFFFFFFF) { // could not allocate a new slab: pool size needs to be increased
-          mySuccess = true; // signal that this key needs to be reinserted 
+          mySuccess = false; // signal that this key needs to be reinserted 
           to_be_inserted = false;
         }
 
@@ -92,9 +92,10 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::insertPair(
                        << 32) |
                           *reinterpret_cast<const uint32_t*>(
                               reinterpret_cast<const unsigned char*>(&myKey)));
-        if (old_key_value_pair == EMPTY_PAIR_64)
+        if (old_key_value_pair == EMPTY_PAIR_64) {
           mySuccess = true;
           to_be_inserted = false;  // successful insertion
+        }
       }
     }
     last_work_queue = work_queue;
