@@ -21,10 +21,6 @@ void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::buildBulk(
     KeyT* d_key,
     ValueT* d_value,
     uint32_t num_keys) {
-
-  bool *h_success = (bool*) malloc(sizeof(bool) * num_keys);     
-
-
   int h_retry = 1;
   int *d_retry;
   CHECK_CUDA_ERROR(cudaMalloc((void**)&d_retry, sizeof(int)));
@@ -42,17 +38,6 @@ void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::buildBulk(
     CHECK_CUDA_ERROR(cudaDeviceSynchronize());
     CHECK_CUDA_ERROR(cudaMemcpy(&h_retry, d_retry, sizeof(int), cudaMemcpyDeviceToHost));
     
-    /*
-    CHECK_CUDA_ERROR(cudaMemcpy(h_success, d_success, num_keys * sizeof(bool), cudaMemcpyDeviceToHost));
-
-    int num_false = 0;
-    for(auto i = 0; i < num_keys; ++i) {
-      if(h_success[i] == false) num_false++;
-    }
-
-    std::cout << "numfalse " << num_false << std::endl;
-    */
-
     // resize the pool here if necessary
     if(h_retry) {
       dynamic_allocator_->growPool();
@@ -60,6 +45,8 @@ void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::buildBulk(
     }
     CHECK_CUDA_ERROR(cudaMemset((void*)d_retry, 0x00, sizeof(int)));
   }
+  CHECK_CUDA_ERROR(cudaFree(d_retry));
+  CHECK_CUDA_ERROR(cudaFree(d_success));
 }
 
 template <typename KeyT, typename ValueT>
@@ -67,11 +54,39 @@ void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::buildBulkWithUniqu
     KeyT* d_key,
     ValueT* d_value,
     uint32_t num_keys) {
+  int h_retry = 1;
+  int *d_retry;
+  CHECK_CUDA_ERROR(cudaMalloc((void**)&d_retry, sizeof(int)));
+  CHECK_CUDA_ERROR(cudaMemset((void*)d_retry, 0x00, sizeof(int)));
+  bool* d_success;
+  CHECK_CUDA_ERROR(cudaMalloc((void**)&d_success, num_keys * sizeof(bool)));
+  CHECK_CUDA_ERROR(cudaMemset((void*)d_success, 0x00, num_keys * sizeof(bool)));
+
+  const uint32_t num_blocks = (num_keys + BLOCKSIZE_ - 1) / BLOCKSIZE_;
+  CHECK_CUDA_ERROR(cudaSetDevice(device_idx_));
+  while(h_retry) {
+    // calling the kernel for bulk build:
+    build_table_with_unique_keys_kernel<KeyT, ValueT>
+        <<<num_blocks, BLOCKSIZE_>>>(d_retry, d_success, d_key, d_value, num_keys, gpu_context_);
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+    CHECK_CUDA_ERROR(cudaMemcpy(&h_retry, d_retry, sizeof(int), cudaMemcpyDeviceToHost));
+    
+    // resize the pool here if necessary
+    if(h_retry) {
+      dynamic_allocator_->growPool();
+      gpu_context_.updateAllocatorContext(dynamic_allocator_->getContextPtr());
+    }
+    CHECK_CUDA_ERROR(cudaMemset((void*)d_retry, 0x00, sizeof(int)));
+  }
+  CHECK_CUDA_ERROR(cudaFree(d_retry));
+  CHECK_CUDA_ERROR(cudaFree(d_success));
+  /*
   const uint32_t num_blocks = (num_keys + BLOCKSIZE_ - 1) / BLOCKSIZE_;
   // calling the kernel for bulk build:
   CHECK_CUDA_ERROR(cudaSetDevice(device_idx_));
   build_table_with_unique_keys_kernel<KeyT, ValueT>
       <<<num_blocks, BLOCKSIZE_>>>(d_key, d_value, num_keys, gpu_context_);
+  */
 }
 
 template <typename KeyT, typename ValueT>

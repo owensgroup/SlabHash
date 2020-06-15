@@ -72,10 +72,10 @@ class gpu_hash_table {
     if (req_values_) {
       CHECK_CUDA_ERROR(cudaMalloc((void**)&d_value_, sizeof(ValueT) * max_keys_));
     }
-    CHECK_CUDA_ERROR(cudaMalloc((void**)&d_query_, sizeof(KeyT) * max_keys_));
-    CHECK_CUDA_ERROR(cudaMalloc((void**)&d_result_, sizeof(ValueT) * max_keys_));
-    CHECK_CUDA_ERROR(cudaMalloc((void**)&d_count_, sizeof(uint32_t) * max_keys_));
-
+    //CHECK_CUDA_ERROR(cudaMalloc((void**)&d_query_, sizeof(KeyT) * max_keys_));
+    //CHECK_CUDA_ERROR(cudaMalloc((void**)&d_result_, sizeof(ValueT) * max_keys_));
+    //CHECK_CUDA_ERROR(cudaMalloc((void**)&d_count_, sizeof(uint32_t) * max_keys_));
+    
     // allocate an initialize the allocator:
     dynamic_allocator_ = new DynamicAllocatorT();
 
@@ -93,9 +93,9 @@ class gpu_hash_table {
     if (req_values_) {
       CHECK_CUDA_ERROR(cudaFree(d_value_));
     }
-    CHECK_CUDA_ERROR(cudaFree(d_query_));
-    CHECK_CUDA_ERROR(cudaFree(d_result_));
-    CHECK_CUDA_ERROR(cudaFree(d_count_));
+    //CHECK_CUDA_ERROR(cudaFree(d_query_));
+    //CHECK_CUDA_ERROR(cudaFree(d_result_));
+    //CHECK_CUDA_ERROR(cudaFree(d_count_));
 
     // delete the dynamic allocator:
     delete dynamic_allocator_;
