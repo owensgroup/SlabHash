@@ -17,6 +17,30 @@
 #pragma once
 
 template <typename KeyT, typename ValueT>
+void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::resize() {
+  dynamic_allocator_->growPool();
+  gpu_context_.updateAllocatorContext(dynamic_allocator_->getContextPtr());
+}
+
+template <typename KeyT, typename ValueT>
+uint32_t GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::checkForPreemptiveResize(uint32_t keysAdded) {
+  auto numSlabs = gpu_context_.getTotalNumSlabs();
+  auto maxElemCapacity = numSlabs * 15;
+  auto finalNumKeys = gpu_context_.getTotalNumKeys() + keysAdded;
+  auto finalSlabLoadFactor = (float) (finalNumKeys) / maxElemCapacity;
+  auto numResizes = 0;
+
+  if(finalSlabLoadFactor > 0.85) {
+    numResizes = 1;
+  }
+  if(finalSlabLoadFactor > 1.95) {
+    numResizes = 2;
+  }
+
+  return numResizes;
+}
+
+template <typename KeyT, typename ValueT>
 void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::buildBulk(
     KeyT* d_key,
     ValueT* d_value,
@@ -40,8 +64,7 @@ void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::buildBulk(
     
     // resize the pool here if necessary
     if(h_retry) {
-      dynamic_allocator_->growPool();
-      gpu_context_.updateAllocatorContext(dynamic_allocator_->getContextPtr());
+      resize();
     }
     CHECK_CUDA_ERROR(cudaMemset((void*)d_retry, 0x00, sizeof(int)));
   }
@@ -65,6 +88,13 @@ void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::buildBulkWithUniqu
   const uint32_t num_blocks = (num_keys + BLOCKSIZE_ - 1) / BLOCKSIZE_;
   CHECK_CUDA_ERROR(cudaSetDevice(device_idx_));
   while(h_retry) {
+
+    // predict whether resizing will be necessary, and take preemptive action.
+    auto numResizes = checkForPreemptiveResize(num_keys);
+    for(auto i = 0; i < numResizes; ++i) {
+      resize();
+    }
+
     // calling the kernel for bulk build:
     build_table_with_unique_keys_kernel<KeyT, ValueT>
         <<<num_blocks, BLOCKSIZE_>>>(d_retry, d_success, d_key, d_value, num_keys, gpu_context_);
@@ -73,20 +103,16 @@ void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::buildBulkWithUniqu
     
     // resize the pool here if necessary
     if(h_retry) {
-      dynamic_allocator_->growPool();
-      gpu_context_.updateAllocatorContext(dynamic_allocator_->getContextPtr());
+      resize();
     }
     CHECK_CUDA_ERROR(cudaMemset((void*)d_retry, 0x00, sizeof(int)));
   }
   CHECK_CUDA_ERROR(cudaFree(d_retry));
   CHECK_CUDA_ERROR(cudaFree(d_success));
-  /*
-  const uint32_t num_blocks = (num_keys + BLOCKSIZE_ - 1) / BLOCKSIZE_;
-  // calling the kernel for bulk build:
-  CHECK_CUDA_ERROR(cudaSetDevice(device_idx_));
-  build_table_with_unique_keys_kernel<KeyT, ValueT>
-      <<<num_blocks, BLOCKSIZE_>>>(d_key, d_value, num_keys, gpu_context_);
-  */
+
+  // now that the bulk insert has completed successfully, we can
+  // update the total number of keys in the table
+  gpu_context_.updateTotalNumKeys(num_keys);
 }
 
 template <typename KeyT, typename ValueT>

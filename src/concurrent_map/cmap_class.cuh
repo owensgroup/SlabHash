@@ -31,12 +31,15 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
 
 #pragma hd_warning_disable
   __host__ __device__ GpuSlabHashContext()
-      : num_buckets_(0), hash_x_(0), hash_y_(0), d_table_(nullptr) {}
+      : num_buckets_(0), total_num_slabs_(0), total_num_keys_(0), 
+        hash_x_(0), hash_y_(0), d_table_(nullptr) {}
 
 #pragma hd_warning_disable
   __host__ __device__ GpuSlabHashContext(
       GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>& rhs) {
     num_buckets_ = rhs.getNumBuckets();
+    total_num_slabs_ = rhs.getTotalNumSlabs();
+    total_num_keys_ = rhs.getTotalNumKeys();
     hash_x_ = rhs.getHashX();
     hash_y_ = rhs.getHashY();
     d_table_ = rhs.getDeviceTablePointer();
@@ -65,10 +68,17 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
     d_table_ =
         reinterpret_cast<typename ConcurrentMapT<KeyT, ValueT>::SlabTypeT*>(d_table);
     global_allocator_ctx_ = *allocator_ctx;
+    total_num_slabs_ = num_buckets + global_allocator_ctx_.getNumSlabsInPool();
+    total_num_keys_ = 0;
   }
 
   __host__ void updateAllocatorContext(AllocatorContextT* allocator_ctx) {
     global_allocator_ctx_ = *allocator_ctx;
+    total_num_slabs_ = num_buckets_ + global_allocator_ctx_.getNumSlabsInPool();
+  }
+
+  __host__ void updateTotalNumKeys(uint32_t keysAdded) {
+    total_num_keys_ += keysAdded;
   }
 
   __device__ __host__ __forceinline__ AllocatorContextT& getAllocatorContext() {
@@ -80,6 +90,8 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
     return d_table_;
   }
 
+  __device__ __host__ __forceinline__ uint32_t getTotalNumSlabs() {return total_num_slabs_; }
+  __device__ __host__ __forceinline__ uint32_t getTotalNumKeys() {return total_num_keys_; }
   __device__ __host__ __forceinline__ uint32_t getNumBuckets() { return num_buckets_; }
   __device__ __host__ __forceinline__ uint32_t getHashX() { return hash_x_; }
   __device__ __host__ __forceinline__ uint32_t getHashY() { return hash_y_; }
@@ -171,6 +183,8 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
 
   // === members:
   uint32_t num_buckets_;
+  uint32_t total_num_slabs_;
+  uint32_t total_num_keys_;
   uint32_t hash_x_;
   uint32_t hash_y_;
   typename ConcurrentMapT<KeyT, ValueT>::SlabTypeT* d_table_;
@@ -264,7 +278,9 @@ class GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
   // returns some debug information about the slab hash
   std::string to_string();
   double computeLoadFactor(int flag);
-
+ 
+  void resize();
+  uint32_t checkForPreemptiveResize(uint32_t keysAdded);
   void buildBulk(KeyT* d_key, ValueT* d_value, uint32_t num_keys);
   void buildBulkWithUniqueKeys(KeyT* d_key, ValueT* d_value, uint32_t num_keys);
   void searchIndividual(KeyT* d_query, ValueT* d_result, uint32_t num_queries);
