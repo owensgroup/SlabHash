@@ -1,6 +1,6 @@
 [submodule "SlabAlloc"]
 	path = SlabAlloc
-	url = https://github.com/owensgroup/SlabAlloc
+	url = https://github.com/Nicolas-Iskos/SlabAlloc
 [submodule "ThirdParty/rapidjson"]
 	path = ThirdParty/rapidjson
 	url = https://github.com/Tencent/rapidjson
