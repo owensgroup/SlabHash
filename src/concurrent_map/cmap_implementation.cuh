@@ -46,40 +46,17 @@ void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::buildBulk(
     ValueT* d_value,
     uint32_t num_keys) {
   
-  /*
-  int h_retry = 1;
-  int *d_retry;
-  CHECK_CUDA_ERROR(cudaMalloc((void**)&d_retry, sizeof(int)));
-  CHECK_CUDA_ERROR(cudaMemset((void*)d_retry, 0x00, sizeof(int)));
-  bool* d_success;
-  CHECK_CUDA_ERROR(cudaMalloc((void**)&d_success, num_keys * sizeof(bool)));
-  CHECK_CUDA_ERROR(cudaMemset((void*)d_success, 0x00, num_keys * sizeof(bool)));
-  */
   const uint32_t num_blocks = (num_keys + BLOCKSIZE_ - 1) / BLOCKSIZE_;
   CHECK_CUDA_ERROR(cudaSetDevice(device_idx_));
-  //while(h_retry) {
-    // predict whether resizing will be necessary, and take preemptive action.
-    auto numResizes = checkForPreemptiveResize(num_keys);
-    for(auto i = 0; i < numResizes; ++i) {
-      resize();
-    }
+  auto numResizes = checkForPreemptiveResize(num_keys);
+  for(auto i = 0; i < numResizes; ++i) {
+    resize();
+  }
 
-    // calling the kernel for bulk build:
-    build_table_kernel<KeyT, ValueT>
-        <<<num_blocks, BLOCKSIZE_>>>(/*d_retry, d_success,*/ d_key, d_value, num_keys, gpu_context_);
-    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
-    //CHECK_CUDA_ERROR(cudaMemcpy(&h_retry, d_retry, sizeof(int), cudaMemcpyDeviceToHost));
-    
-    // resize the pool here if necessary
-    /*
-    if(h_retry) {
-      resize();
-    }
-    CHECK_CUDA_ERROR(cudaMemset((void*)d_retry, 0x00, sizeof(int)));
-    */
-  //}
-  //CHECK_CUDA_ERROR(cudaFree(d_retry));
-  //CHECK_CUDA_ERROR(cudaFree(d_success));
+  // calling the kernel for bulk build:
+  build_table_kernel<KeyT, ValueT>
+      <<<num_blocks, BLOCKSIZE_>>>(/*d_retry, d_success,*/ d_key, d_value, num_keys, gpu_context_);
+  CHECK_CUDA_ERROR(cudaDeviceSynchronize());
   
   // now that the bulk insert has completed successfully, we can
   // update the total number of keys in the table
@@ -88,45 +65,22 @@ void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::buildBulk(
 
 template <typename KeyT, typename ValueT>
 void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::buildBulkWithUniqueKeys(
-    KeyT* d_key,
-    ValueT* d_value,
-    uint32_t num_keys) {
+  KeyT* d_key,
+  ValueT* d_value,
+  uint32_t num_keys) {
   
-  /*
-  int h_retry = 1;
-  int *d_retry;
-  CHECK_CUDA_ERROR(cudaMalloc((void**)&d_retry, sizeof(int)));
-  CHECK_CUDA_ERROR(cudaMemset((void*)d_retry, 0x00, sizeof(int)));
-  bool* d_success;
-  CHECK_CUDA_ERROR(cudaMalloc((void**)&d_success, num_keys * sizeof(bool)));
-  CHECK_CUDA_ERROR(cudaMemset((void*)d_success, 0x00, num_keys * sizeof(bool)));
-  */
   const uint32_t num_blocks = (num_keys + BLOCKSIZE_ - 1) / BLOCKSIZE_;
   CHECK_CUDA_ERROR(cudaSetDevice(device_idx_));
-  //while(h_retry) {
-    // predict whether resizing will be necessary, and take preemptive action.
-    auto numResizes = checkForPreemptiveResize(num_keys);
-    for(auto i = 0; i < numResizes; ++i) {
-      resize();
-    }
+  auto numResizes = checkForPreemptiveResize(num_keys);
+  for(auto i = 0; i < numResizes; ++i) {
+    resize();
+  }
 
-    // calling the kernel for bulk build:
-    build_table_with_unique_keys_kernel<KeyT, ValueT>
-        <<<num_blocks, BLOCKSIZE_>>>(/*d_retry, d_success,*/ d_key, d_value, num_keys, gpu_context_);
-    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
-    //CHECK_CUDA_ERROR(cudaMemcpy(&h_retry, d_retry, sizeof(int), cudaMemcpyDeviceToHost));
-    
-    // resize the pool here if necessary
-    /*
-    if(h_retry) {
-      resize();
-    }
-    CHECK_CUDA_ERROR(cudaMemset((void*)d_retry, 0x00, sizeof(int)));
-    */
-  //}
-  //CHECK_CUDA_ERROR(cudaFree(d_retry));
-  //CHECK_CUDA_ERROR(cudaFree(d_success));
-
+  // calling the kernel for bulk build:
+  build_table_with_unique_keys_kernel<KeyT, ValueT>
+      <<<num_blocks, BLOCKSIZE_>>>(/*d_retry, d_success,*/ d_key, d_value, num_keys, gpu_context_);
+  CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+  
   // now that the bulk insert has completed successfully, we can
   // update the total number of keys in the table
   gpu_context_.updateTotalNumKeys(num_keys);
