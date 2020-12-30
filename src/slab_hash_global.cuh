@@ -17,6 +17,7 @@
 #pragma once
 
 #include "slab_alloc.cuh"
+#include "cub/cub.cuh"
 
 #define CHECK_CUDA_ERROR(call)                                                          \
   do {                                                                                  \

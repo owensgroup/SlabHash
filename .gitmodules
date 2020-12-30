@@ -7,3 +7,6 @@
 [submodule "ThirdParty/googletest"]
 	path = ThirdParty/googletest
 	url = https://github.com/google/googletest
+[submodule "cub"]
+	path = cub
+	url = https://github.com/NVIDIA/cub.git
