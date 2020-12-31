@@ -75,15 +75,18 @@ void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::buildBulkWithUniqu
   }
 
   // calling the kernel for bulk build:
-  int num_successes = 0;
+  int *num_successes;
+  CHECK_CUDA_ERROR(cudaMallocManaged(&num_successes, sizeof(int)));
+  *num_successes = 0;
+
   build_table_with_unique_keys_kernel<KeyT, ValueT>
-      <<<num_blocks, BLOCKSIZE_>>>(&num_successes, d_key, d_value, num_keys, gpu_context_);
+      <<<num_blocks, BLOCKSIZE_>>>(num_successes, d_key, d_value, num_keys, gpu_context_);
   CHECK_CUDA_ERROR(cudaDeviceSynchronize());
   
   // now that the bulk insert has completed successfully, we can
   // update the total number of keys in the table
-  gpu_context_.updateTotalNumKeys(num_successes);
-  std::cout << "num_successes: " << num_successes << std::endl;
+  gpu_context_.updateTotalNumKeys(*num_successes);
+  std::cout << "num_successes: " << *num_successes << std::endl;
 }
 
 template <typename KeyT, typename ValueT>
