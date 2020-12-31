@@ -51,10 +51,15 @@ __global__ void build_table_kernel(
 
 template <typename KeyT, typename ValueT>
 __global__ void build_table_with_unique_keys_kernel(
+    int *num_successes,
     KeyT* d_key,
     ValueT* d_value,
     uint32_t num_keys,
     GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> slab_hash) {
+  
+  typedef cub::BlockReduce<std::size_t, 128> BlockReduce;
+  __shared__ typename BlockReduce::TempStorage temp_storage;
+
   uint32_t tid = threadIdx.x + blockIdx.x * blockDim.x;
   uint32_t laneId = threadIdx.x & 0x1F;
 
@@ -68,6 +73,7 @@ __global__ void build_table_with_unique_keys_kernel(
   KeyT myKey = 0;
   ValueT myValue = 0;
   uint32_t myBucket = 0;
+  int mySuccess = 0;
   bool to_insert = false;
 
   if (tid < num_keys) {
@@ -77,6 +83,11 @@ __global__ void build_table_with_unique_keys_kernel(
     to_insert = true;
   }
 
-  slab_hash.insertPairUnique(
+  slab_hash.insertPairUnique(mySuccess,
       to_insert, laneId, myKey, myValue, myBucket, local_allocator_ctx);
+      
+  std::size_t block_num_successes = BlockReduce(temp_storage).Sum(mySuccess);
+  if(threadIdx.x == 0) {
+    atomicAdd(num_successes, block_num_successes);
+  }
 }
