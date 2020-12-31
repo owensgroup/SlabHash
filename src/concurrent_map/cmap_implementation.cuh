@@ -86,7 +86,7 @@ void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::buildBulkWithUniqu
   // now that the bulk insert has completed successfully, we can
   // update the total number of keys in the table
   gpu_context_.updateTotalNumKeys(*num_successes);
-  std::cout << "num_successes: " << *num_successes << std::endl;
+  //std::cout << "num_successes: " << *num_successes << std::endl;
 }
 
 template <typename KeyT, typename ValueT>
