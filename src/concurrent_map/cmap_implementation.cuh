@@ -30,7 +30,7 @@ uint32_t GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::checkForPreemp
   auto finalSlabLoadFactor = (float) (finalNumKeys) / maxElemCapacity;
   auto numResizes = 0;
 
-  if(finalSlabLoadFactor > 0.60) {
+  if(finalSlabLoadFactor > 0.70) {
     numResizes = 1;
   }
 
