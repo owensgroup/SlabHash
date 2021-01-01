@@ -25,6 +25,7 @@ void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::resize() {
 template <typename KeyT, typename ValueT>
 uint32_t GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::checkForPreemptiveResize(uint32_t keysAdded) {
   auto numSlabs = gpu_context_.getTotalNumSlabs();
+  std::cout << "numSlabs " << numSlabs << std::endl;
   auto maxElemCapacity = numSlabs * 15;
   auto finalNumKeys = gpu_context_.getTotalNumKeys() + keysAdded;
   std::cout << "finalNumKeys " << finalNumKeys << std::endl;
