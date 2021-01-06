@@ -193,7 +193,7 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::insertPairUnique
                             *reinterpret_cast<const uint32_t*>(
                                 reinterpret_cast<const unsigned char*>(&myKey)));
           if (old_key_value_pair == EMPTY_PAIR_64) {
-            mySuccess = 1;
+            mySuccess += 1;
             to_be_inserted = false;  // successful insertion
             new_insertion = true;
           }
