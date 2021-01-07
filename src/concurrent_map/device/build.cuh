@@ -63,9 +63,9 @@ __global__ void build_table_with_unique_keys_kernel(
   uint32_t tid = threadIdx.x + blockIdx.x * blockDim.x;
   uint32_t laneId = threadIdx.x & 0x1F;
 
-  if ((tid - laneId) >= num_keys) {
-    return;
-  }
+  //if ((tid - laneId) >= num_keys) {
+  //  return;
+  //}
 
   AllocatorContextT local_allocator_ctx(slab_hash.getAllocatorContext());
   local_allocator_ctx.initAllocator(tid, laneId);
@@ -83,8 +83,10 @@ __global__ void build_table_with_unique_keys_kernel(
     to_insert = true;
   }
 
-  slab_hash.insertPairUnique(mySuccess,
-      to_insert, laneId, myKey, myValue, myBucket, local_allocator_ctx);
+  if ((tid - laneId) < num_keys) {
+    slab_hash.insertPairUnique(mySuccess,
+        to_insert, laneId, myKey, myValue, myBucket, local_allocator_ctx);
+  }
       
   std::size_t block_num_successes = BlockReduce(temp_storage).Sum(mySuccess);
   if(threadIdx.x == 0) {
