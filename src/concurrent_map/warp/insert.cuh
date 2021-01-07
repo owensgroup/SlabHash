@@ -146,7 +146,6 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::insertPairUnique
                           SlabHashT::REGULAR_NODE_KEY_MASK;
     if (isExisting) {  // key exist in the hash table
       if (laneId == src_lane) {
-        mySuccess = 0;
         to_be_inserted = false;
       }
     } else {
@@ -156,7 +155,6 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::insertPairUnique
           // allocate a new node:
           uint32_t new_node_ptr = allocateSlab(local_allocator_ctx, laneId);
           if(new_node_ptr == 0xFFFFFFFF) { // could not allocate a new slab: pool size needs to be increased
-            mySuccess = 0; // signal that this key needs to be reinserted 
             to_be_inserted = false;
             continue;
           }
