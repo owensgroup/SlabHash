@@ -256,12 +256,14 @@ class GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
 
     // creating a random number generator:
     if (!identity_hash) {
+      std::cout << "chicken" << std::endl;
       std::mt19937 rng(seed ? seed : time(0));
       hf_.x = rng() % PRIME_DIVISOR_;
       if (hf_.x < 1)
         hf_.x = 1;
       hf_.y = rng() % PRIME_DIVISOR_;
     } else {
+      std::cout << "cow" << std::endl;
       hf_ = {0u, 0u};
     }
 
