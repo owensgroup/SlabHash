@@ -81,6 +81,8 @@ void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::buildBulkWithUniqu
   CHECK_CUDA_ERROR(cudaMallocManaged(&num_successes, sizeof(int)));
   *num_successes = 0;
 
+  std::cout << "hashes" << gpu_context_.getHashX() << ", " << gpu_context_.getHashY() << std::endl;
+
   build_table_with_unique_keys_kernel<KeyT, ValueT>
       <<<num_blocks, BLOCKSIZE_>>>(num_successes, d_key, d_value, num_keys, gpu_context_);
   CHECK_CUDA_ERROR(cudaDeviceSynchronize());
