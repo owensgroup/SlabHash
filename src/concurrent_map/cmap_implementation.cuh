@@ -28,11 +28,11 @@ uint32_t GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::checkForPreemp
   
   auto capacity = numSlabs * 16; // capacity in key-value size multiples
   auto finalNumKeys = gpu_context_.getTotalNumKeys() + keysAdded;
-  std::cout << "finalNumKeys " << finalNumKeys << std::endl;
+  //std::cout << "finalNumKeys " << finalNumKeys << std::endl;
   auto finalSlabLoadFactor = (float) (finalNumKeys) / capacity;
   auto numResizes = 0;
 
-  if(finalSlabLoadFactor > 1) {
+  if(finalSlabLoadFactor >= 0.90) {
     numResizes = 1;
   }
 
