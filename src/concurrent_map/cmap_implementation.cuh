@@ -28,11 +28,11 @@ uint32_t GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::checkForPreemp
   
   auto capacity = numSlabs * 16; // capacity in key-value size multiples
   auto finalNumKeys = gpu_context_.getTotalNumKeys() + keysAdded;
-  std::cout << "finalNumKeys " << finalNumKeys << std::endl;
+  //std::cout << "finalNumKeys " << finalNumKeys << std::endl;
   auto finalSlabLoadFactor = (float) (finalNumKeys) / capacity;
   auto numResizes = 0;
 
-  if(finalSlabLoadFactor > 0.65) {
+  if(finalSlabLoadFactor > 0.60) {
     numResizes = 1;
   }
 
@@ -80,8 +80,6 @@ void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::buildBulkWithUniqu
   int *num_successes;
   CHECK_CUDA_ERROR(cudaMallocManaged(&num_successes, sizeof(int)));
   *num_successes = 0;
-
-  std::cout << "hashes" << gpu_context_.getHashX() << ", " << gpu_context_.getHashY() << std::endl;
 
   build_table_with_unique_keys_kernel<KeyT, ValueT>
       <<<num_blocks, BLOCKSIZE_>>>(num_successes, d_key, d_value, num_keys, gpu_context_);
