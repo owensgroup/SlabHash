@@ -129,7 +129,7 @@ class GpuSlabHashContext;
 // this might need to be a template paramater itself
 namespace slab_alloc_par {
 constexpr uint32_t log_num_mem_blocks = 9; // 64 MB 
-constexpr uint32_t num_super_blocks = 2;
+constexpr uint32_t num_super_blocks = 15;
 constexpr uint32_t num_replicas = 1;
 }  // namespace slab_alloc_par
 
