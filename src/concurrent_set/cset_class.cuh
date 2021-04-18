@@ -180,7 +180,8 @@ class GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentSet, log_num_mem_blocks
               SlabAllocLight<log_num_mem_blocks, num_super_blocks, 1>* dynamic_allocator,
               uint32_t device_idx,
               const time_t seed = 0,
-              const bool identity_hash = false)
+              const bool identity_hash = false,
+              float thresh_lf = 0.60)
       : num_buckets_(num_buckets)
       , d_table_(nullptr)
       , slab_unit_size_(0)

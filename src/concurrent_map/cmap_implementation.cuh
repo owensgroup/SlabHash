@@ -32,7 +32,7 @@ uint32_t GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blo
   auto finalSlabLoadFactor = (float) (finalNumKeys) / capacity;
   auto numResizes = 0;
 
-  if(finalSlabLoadFactor >= 0.90) {
+  if(finalSlabLoadFactor >= thresh_lf_) {
     numResizes = 1;
   }
 

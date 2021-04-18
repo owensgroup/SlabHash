@@ -50,16 +50,20 @@ class gpu_hash_table {
   ValueT* d_result_;
   uint32_t* d_count_;
 
+  float thresh_lf_;
+
   gpu_hash_table(uint32_t max_keys,
                  uint32_t num_buckets,
                  const uint32_t device_idx,
                  const int64_t seed,
                  const bool req_values = true,
                  const bool identity_hash = false,
-                 const bool verbose = false)
+                 const bool verbose = false,
+                 float thresh_lf = 0.60)
       : max_keys_(max_keys)
       , num_buckets_(num_buckets)
       , seed_(seed)
+      , thresh_lf_(thresh_lf)
       , req_values_(req_values)
       , slab_hash_(nullptr)
       , identity_hash_(identity_hash)
@@ -81,12 +85,11 @@ class gpu_hash_table {
     //CHECK_CUDA_ERROR(cudaMalloc((void**)&d_count_, sizeof(uint32_t) * max_keys_));
     
     // allocate an initialize the allocator:
-    //dynamic_allocator_ = new DynamicAllocatorT();
     dynamic_allocator_ = new SlabAllocLight<log_num_mem_blocks, num_super_blocks, 1>;
 
     // slab hash:
     slab_hash_ = new GpuSlabHash<KeyT, ValueT, SlabHashT, log_num_mem_blocks, num_super_blocks>(
-        num_buckets_, dynamic_allocator_, device_idx_, seed_, identity_hash_);
+        num_buckets_, dynamic_allocator_, device_idx_, seed_, identity_hash_, thresh_lf_);
     if (verbose) {
       std::cout << slab_hash_->to_string() << std::endl;
     }

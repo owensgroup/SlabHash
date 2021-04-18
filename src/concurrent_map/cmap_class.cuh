@@ -222,21 +222,24 @@ class GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blocks
 
   // const pointer to an allocator that all instances of slab hash are going to
   // use. The allocator itself is not owned by this class
-  //DynamicAllocatorT* dynamic_allocator_;
   SlabAllocLight<log_num_mem_blocks, num_super_blocks, 1> *dynamic_allocator_;
   uint32_t device_idx_;
+
+  float thresh_lf_;
 
  public:
   GpuSlabHash(const uint32_t num_buckets,
               SlabAllocLight<log_num_mem_blocks, num_super_blocks, 1>* dynamic_allocator,
               uint32_t device_idx,
               const time_t seed = 0,
-              const bool identity_hash = false)
+              const bool identity_hash = false,
+              float thresh_lf = 0.60)
       : num_buckets_(num_buckets)
       , d_table_(nullptr)
       , slab_unit_size_(0)
       , dynamic_allocator_(dynamic_allocator)
-      , device_idx_(device_idx) {
+      , device_idx_(device_idx)
+      , thresh_lf_(thresh_lf) {
     assert(dynamic_allocator && "No proper dynamic allocator attached to the slab hash.");
     assert(sizeof(typename ConcurrentMapT<KeyT, ValueT>::SlabTypeT) ==
                (WARP_WIDTH_ * sizeof(uint32_t)) &&
