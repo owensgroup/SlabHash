@@ -16,14 +16,14 @@
 
 #pragma once
 
-template <typename KeyT, typename ValueT>
+template <typename KeyT, typename ValueT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
 __device__ __forceinline__ bool
-GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentSet>::insertKey(
+GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentSet, log_num_mem_blocks, num_super_blocks>::insertKey(
     bool& to_be_inserted,
     const uint32_t& laneId,
     const KeyT& myKey,
     const uint32_t bucket_id,
-    AllocatorContextT& local_allocator_ctx) {
+    SlabAllocLightContext<log_num_mem_blocks, num_super_blocks, 1>& local_allocator_ctx) {
   using SlabHashT = ConcurrentSetT<KeyT>;
   uint32_t work_queue = 0;
   uint32_t last_work_queue = 0;
@@ -91,9 +91,9 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentSet>::insertKey(
 }
 
 // ========
-template <typename KeyT, typename ValueT>
+template <typename KeyT, typename ValueT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
 __device__ __forceinline__ bool
-GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentSet>::searchKey(
+GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentSet, log_num_mem_blocks, num_super_blocks>::searchKey(
     bool& to_be_searched,
     const uint32_t& laneId,
     const KeyT& myKey,
@@ -138,9 +138,9 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentSet>::searchKey(
   return myResult;
 }
 
-template <typename KeyT, typename ValueT>
+template <typename KeyT, typename ValueT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
 __device__ __forceinline__ bool
-GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentSet>::searchKeyBulk(
+GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentSet, log_num_mem_blocks, num_super_blocks>::searchKeyBulk(
     const uint32_t& laneId,
     const KeyT& myKey,
     const uint32_t bucket_id) {}

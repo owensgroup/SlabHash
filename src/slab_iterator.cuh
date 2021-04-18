@@ -19,12 +19,12 @@
 // a forward iterator for the slab hash data structure:
 // currently just specialized for concurrent set
 // TODO implement for other types
-template <typename KeyT>
+template <typename KeyT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
 class SlabIterator {
  public:
   using SlabHashT = ConcurrentSetT<KeyT>;
 
-  GpuSlabHashContext<KeyT, KeyT, SlabHashTypeT::ConcurrentSet>& slab_hash_;
+  GpuSlabHashContext<KeyT, KeyT, SlabHashTypeT::ConcurrentSet, log_num_mem_blocks, num_super_blocks>& slab_hash_;
 
   // current position of the iterator
   KeyT* cur_ptr_;
@@ -35,7 +35,7 @@ class SlabIterator {
   // initialize the iterator with the first bucket's pointer address of the slab
   // hash
   __host__ __device__
-  SlabIterator(GpuSlabHashContext<KeyT, KeyT, SlabHashTypeT::ConcurrentSet>& slab_hash)
+  SlabIterator(GpuSlabHashContext<KeyT, KeyT, SlabHashTypeT::ConcurrentSet, log_num_mem_blocks, num_super_blocks>& slab_hash)
       : slab_hash_(slab_hash)
       , cur_ptr_(reinterpret_cast<KeyT*>(slab_hash_.getDeviceTablePointer()))
       , cur_size_(slab_hash_.getNumBuckets() * SlabHashT::BASE_UNIT_SIZE)

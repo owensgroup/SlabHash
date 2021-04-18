@@ -21,16 +21,16 @@
  * it is assumed all threads within a warp are present and collaborating with
  * each other with a warp-cooperative work sharing (WCWS) strategy.
  */
-template <typename KeyT, typename ValueT>
+template <typename KeyT, typename ValueT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
 __device__ __forceinline__ void
-GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::insertPair(
+GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blocks, num_super_blocks>::insertPair(
     /*bool& mySuccess,*/
     bool& to_be_inserted,
     const uint32_t& laneId,
     const KeyT& myKey,
     const ValueT& myValue,
     const uint32_t bucket_id,
-    AllocatorContextT& local_allocator_ctx) {
+    SlabAllocLightContext<log_num_mem_blocks, num_super_blocks>& local_allocator_ctx) {
   using SlabHashT = ConcurrentMapT<KeyT, ValueT>;
   uint32_t work_queue = 0;
   uint32_t last_work_queue = 0;
@@ -110,16 +110,16 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::insertPair(
  * each other with a warp-cooperative work sharing (WCWS) strategy.
  * returns true only if a new key was inserted into the hash table
  */
-template <typename KeyT, typename ValueT>
+template <typename KeyT, typename ValueT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
 __device__ __forceinline__ bool
-GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::insertPairUnique(
+GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blocks, num_super_blocks>::insertPairUnique(
     int& mySuccess,
     bool& to_be_inserted,
     const uint32_t& laneId,
     const KeyT& myKey,
     const ValueT& myValue,
     const uint32_t bucket_id,
-    AllocatorContextT& local_allocator_ctx) {
+    SlabAllocLightContext<log_num_mem_blocks, num_super_blocks, 1>& local_allocator_ctx) {
 
   using SlabHashT = ConcurrentMapT<KeyT, ValueT>;
   uint32_t work_queue = 0;

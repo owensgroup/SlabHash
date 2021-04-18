@@ -119,10 +119,10 @@ class PhaseConcurrentMapT {
 };
 
 // the main class to be specialized for different types of hash tables
-template <typename KeyT, typename ValueT, SlabHashTypeT SlabHashT>
+template <typename KeyT, typename ValueT, SlabHashTypeT SlabHashT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
 class GpuSlabHash;
 
-template <typename KeyT, typename ValueT, SlabHashTypeT SlabHashT>
+template <typename KeyT, typename ValueT, SlabHashTypeT SlabHashT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
 class GpuSlabHashContext;
 
 // The custom allocator that is being used for this code:

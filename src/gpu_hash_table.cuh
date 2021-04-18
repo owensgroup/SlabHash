@@ -21,7 +21,8 @@
  * This class acts as a helper class to simplify simulations around different
  * kinds of slab hash implementations
  */
-template <typename KeyT, typename ValueT, SlabHashTypeT SlabHashT>
+template <typename KeyT, typename ValueT, SlabHashTypeT SlabHashT, 
+          uint32_t log_num_mem_blocks=9, uint32_t num_super_blocks=1>
 class gpu_hash_table {
  private:
   uint32_t max_keys_;
@@ -32,10 +33,13 @@ class gpu_hash_table {
 
  public:
   // Slab hash invariant
-  GpuSlabHash<KeyT, ValueT, SlabHashT>* slab_hash_;
+  GpuSlabHash<KeyT, ValueT, SlabHashT, log_num_mem_blocks, num_super_blocks>* slab_hash_;
+
+  SlabAllocLight<log_num_mem_blocks, num_super_blocks, 1>* dynamic_allocator_;
 
   // the dynamic allocator that is being used for slab hash
-  DynamicAllocatorT* dynamic_allocator_;
+  //DynamicAllocatorT* dynamic_allocator_;
+
 
   uint32_t device_idx_;
 
@@ -77,10 +81,11 @@ class gpu_hash_table {
     //CHECK_CUDA_ERROR(cudaMalloc((void**)&d_count_, sizeof(uint32_t) * max_keys_));
     
     // allocate an initialize the allocator:
-    dynamic_allocator_ = new DynamicAllocatorT();
+    //dynamic_allocator_ = new DynamicAllocatorT();
+    dynamic_allocator_ = new SlabAllocLight<log_num_mem_blocks, num_super_blocks, 1>;
 
     // slab hash:
-    slab_hash_ = new GpuSlabHash<KeyT, ValueT, SlabHashT>(
+    slab_hash_ = new GpuSlabHash<KeyT, ValueT, SlabHashT, log_num_mem_blocks, num_super_blocks>(
         num_buckets_, dynamic_allocator_, device_idx_, seed_, identity_hash_);
     if (verbose) {
       std::cout << slab_hash_->to_string() << std::endl;

@@ -16,12 +16,12 @@
 
 #pragma once
 
-template <typename KeyT, typename ValueT>
+template <typename KeyT, typename ValueT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
 __global__ void batched_operations(
     uint32_t* d_operations,
     uint32_t* d_results,
     uint32_t num_operations,
-    GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> slab_hash) {
+    GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blocks, num_super_blocks> slab_hash) {
   uint32_t tid = threadIdx.x + blockIdx.x * blockDim.x;
   uint32_t laneId = threadIdx.x & 0x1F;
 
@@ -29,7 +29,7 @@ __global__ void batched_operations(
     return;
 
   // initializing the memory allocator on each warp:
-  AllocatorContextT local_allocator_ctx(slab_hash.getAllocatorContext());
+  SlabAllocLightContext<log_num_mem_blocks, num_super_blocks, 1> local_allocator_ctx(slab_hash.getAllocatorContext());
   local_allocator_ctx.initAllocator(tid, laneId);
 
   uint32_t myOperation = 0;

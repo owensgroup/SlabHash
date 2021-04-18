@@ -21,9 +21,9 @@
  * slabs per bucket. The final results per bucket is stored in d_pairs_count_result and
  * d_slabs_count_result arrays respectively
  */
-template <typename KeyT, typename ValueT>
+template <typename KeyT, typename ValueT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
 __global__ void bucket_count_kernel(
-    GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> slab_hash,
+    GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blocks, num_super_blocks> slab_hash,
     uint32_t* d_pairs_count_result,
     uint32_t* d_slabs_count_result,
     uint32_t num_buckets) {

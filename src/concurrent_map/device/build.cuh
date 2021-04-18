@@ -18,12 +18,12 @@
 /*
  *
  */
-template <typename KeyT, typename ValueT>
+template <typename KeyT, typename ValueT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
 __global__ void build_table_kernel(
     KeyT* d_key,
     ValueT* d_value,
     uint32_t num_keys,
-    GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> slab_hash) {
+    GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blocks, num_super_blocks> slab_hash) {
   uint32_t tid = threadIdx.x + blockIdx.x * blockDim.x;
   uint32_t laneId = threadIdx.x & 0x1F;
 
@@ -31,7 +31,7 @@ __global__ void build_table_kernel(
     return;
   }
 
-  AllocatorContextT local_allocator_ctx(slab_hash.getAllocatorContext());
+  SlabAllocLightContext<log_num_mem_blocks, num_super_blocks, 1> local_allocator_ctx(slab_hash.getAllocatorContext());
   local_allocator_ctx.initAllocator(tid, laneId);
 
   KeyT myKey = 0;
@@ -49,13 +49,13 @@ __global__ void build_table_kernel(
   slab_hash.insertPair(to_insert, laneId, myKey, myValue, myBucket, local_allocator_ctx);
 }
 
-template <typename KeyT, typename ValueT>
+template <typename KeyT, typename ValueT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
 __global__ void build_table_with_unique_keys_kernel(
     int *num_successes,
     KeyT* d_key,
     ValueT* d_value,
     uint32_t num_keys,
-    GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> slab_hash) {
+    GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blocks, num_super_blocks> slab_hash) {
   
   typedef cub::BlockReduce<std::size_t, 128> BlockReduce;
   __shared__ typename BlockReduce::TempStorage temp_storage;
@@ -67,7 +67,7 @@ __global__ void build_table_with_unique_keys_kernel(
   //  return;
   //}
 
-  AllocatorContextT local_allocator_ctx(slab_hash.getAllocatorContext());
+  SlabAllocLightContext<log_num_mem_blocks, num_super_blocks, 1> local_allocator_ctx(slab_hash.getAllocatorContext());
   local_allocator_ctx.initAllocator(tid, laneId);
 
   KeyT myKey = 0;
