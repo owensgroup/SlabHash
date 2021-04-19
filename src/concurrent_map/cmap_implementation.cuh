@@ -23,12 +23,12 @@ void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blocks,
 }
 
 template <typename KeyT, typename ValueT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
-uint32_t GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blocks, num_super_blocks>::checkForPreemptiveResize(uint32_t keysAdded) {
+uint32_t GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, 
+                     log_num_mem_blocks, num_super_blocks>::checkForPreemptiveResize(uint32_t keysAdded) {
   auto numSlabs = gpu_context_.getTotalNumSlabs();
   
   auto capacity = numSlabs * 16; // capacity in key-value size multiples
   auto finalNumKeys = gpu_context_.getTotalNumKeys() + keysAdded;
-  //std::cout << "finalNumKeys " << finalNumKeys << std::endl;
   auto finalSlabLoadFactor = (float) (finalNumKeys) / capacity;
   auto numResizes = 0;
 
@@ -40,7 +40,8 @@ uint32_t GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blo
 }
 
 template <typename KeyT, typename ValueT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
-void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blocks, num_super_blocks>::buildBulk(
+void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, 
+                 log_num_mem_blocks, num_super_blocks>::buildBulk(
     KeyT* d_key,
     ValueT* d_value,
     uint32_t num_keys) {
@@ -53,7 +54,6 @@ void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blocks,
   }
 
   // calling the kernel for bulk build:
-  //int num_successes = 0;
   build_table_kernel<KeyT, ValueT>
       <<<num_blocks, BLOCKSIZE_>>>(d_key, d_value, num_keys, gpu_context_);
   CHECK_CUDA_ERROR(cudaDeviceSynchronize());
@@ -64,7 +64,8 @@ void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blocks,
 }
 
 template <typename KeyT, typename ValueT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
-void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blocks, num_super_blocks>::buildBulkWithUniqueKeys(
+void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, 
+                 log_num_mem_blocks, num_super_blocks>::buildBulkWithUniqueKeys(
   KeyT* d_key,
   ValueT* d_value,
   uint32_t num_keys) {
@@ -88,11 +89,11 @@ void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blocks,
   // now that the bulk insert has completed successfully, we can
   // update the total number of keys in the table
   gpu_context_.updateTotalNumKeys(*num_successes);
-  //std::cout << "num_successes: " << *num_successes << std::endl;
 }
 
 template <typename KeyT, typename ValueT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
-void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blocks, num_super_blocks>::searchIndividual(
+void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, 
+                 log_num_mem_blocks, num_super_blocks>::searchIndividual(
     KeyT* d_query,
     ValueT* d_result,
     uint32_t num_queries) {
@@ -103,7 +104,8 @@ void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blocks,
 }
 
 template <typename KeyT, typename ValueT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
-void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blocks, num_super_blocks>::searchBulk(
+void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, 
+                 log_num_mem_blocks, num_super_blocks>::searchBulk(
     KeyT* d_query,
     ValueT* d_result,
     uint32_t num_queries) {
@@ -114,7 +116,8 @@ void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blocks,
 }
 
 template <typename KeyT, typename ValueT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
-void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blocks, num_super_blocks>::countIndividual(
+void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, 
+                 log_num_mem_blocks, num_super_blocks>::countIndividual(
     KeyT* d_query,
     uint32_t* d_count,
     uint32_t num_queries) {
@@ -125,7 +128,8 @@ void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blocks,
 }
 
 template <typename KeyT, typename ValueT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
-void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blocks, num_super_blocks>::deleteIndividual(
+void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, 
+                 log_num_mem_blocks, num_super_blocks>::deleteIndividual(
     KeyT* d_key,
     uint32_t num_keys) {
   CHECK_CUDA_ERROR(cudaSetDevice(device_idx_));
@@ -136,7 +140,8 @@ void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blocks,
 
 // perform a batch of (a mixture of) updates/searches
 template <typename KeyT, typename ValueT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
-void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blocks, num_super_blocks>::batchedOperation(
+void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, 
+                 log_num_mem_blocks, num_super_blocks>::batchedOperation(
     KeyT* d_key,
     ValueT* d_result,
     uint32_t num_ops) {
@@ -147,7 +152,8 @@ void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blocks,
 }
 
 template <typename KeyT, typename ValueT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
-std::string GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blocks, num_super_blocks>::to_string() {
+std::string GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, 
+                        log_num_mem_blocks, num_super_blocks>::to_string() {
   std::string result;
   result += " ==== GpuSlabHash: \n";
   result += "\t Running on device \t\t " + std::to_string(device_idx_) + "\n";
@@ -162,7 +168,8 @@ std::string GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_
 }
 
 template <typename KeyT, typename ValueT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
-double GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blocks, num_super_blocks>::computeLoadFactor(
+double GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, 
+                   log_num_mem_blocks, num_super_blocks>::computeLoadFactor(
     int flag = 0) {
   uint32_t* h_bucket_pairs_count = new uint32_t[num_buckets_];
   uint32_t* d_bucket_pairs_count;
