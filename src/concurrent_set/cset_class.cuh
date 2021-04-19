@@ -22,7 +22,8 @@
  * (i.e., d_table_)
  */
 template <typename KeyT, typename ValueT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
-class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentSet, log_num_mem_blocks, num_super_blocks> {
+class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentSet, 
+                         log_num_mem_blocks, num_super_blocks> {
  public:
   // fixed known parameters:
   static constexpr uint32_t PRIME_DIVISOR_ = 4294967291u;
@@ -36,7 +37,8 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentSet, log_num_mem
 
 #pragma hd_warning_disable
   __host__ __device__ GpuSlabHashContext(
-      GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentSet, log_num_mem_blocks, num_super_blocks>& rhs) {
+      GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentSet, 
+                         log_num_mem_blocks, num_super_blocks>& rhs) {
     num_buckets_ = rhs.getNumBuckets();
     hash_x_ = rhs.getHashX();
     hash_y_ = rhs.getHashY();
@@ -57,7 +59,8 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentSet, log_num_mem
                                const uint32_t hash_x,
                                const uint32_t hash_y,
                                int8_t* d_table,
-                               SlabAllocLightContext<log_num_mem_blocks, num_super_blocks, 1>* allocator_ctx) {
+                               SlabAllocLightContext<log_num_mem_blocks, 
+                               num_super_blocks, 1>* allocator_ctx) {
     num_buckets_ = num_buckets;
     hash_x_ = hash_x;
     hash_y_ = hash_y;
@@ -65,7 +68,8 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentSet, log_num_mem
     global_allocator_ctx_ = *allocator_ctx;
   }
 
-  __device__ __host__ __forceinline__ SlabAllocLightContext<log_num_mem_blocks, num_super_blocks, 1>& getAllocatorContext() {
+  __device__ __host__ __forceinline__ SlabAllocLightContext<log_num_mem_blocks, 
+    num_super_blocks, 1>& getAllocatorContext() {
     return global_allocator_ctx_;
   }
 
@@ -88,7 +92,8 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentSet, log_num_mem
                                             const uint32_t& laneId,
                                             const KeyT& myKey,
                                             const uint32_t bucket_id,
-                                            SlabAllocLightContext<log_num_mem_blocks, num_super_blocks, 1>& local_allocator_context);
+                                            SlabAllocLightContext<log_num_mem_blocks, num_super_blocks, 1>& 
+                                            local_allocator_context);
 
   // threads in a warp cooeparte with each other to search for keys
   // if found, it returns the true, else false
@@ -124,7 +129,8 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentSet, log_num_mem
   }
 
   __device__ __forceinline__ SlabAllocAddressT
-  allocateSlab(SlabAllocLightContext<log_num_mem_blocks, num_super_blocks, 1>& local_allocator_ctx, const uint32_t& laneId) {
+  allocateSlab(SlabAllocLightContext<log_num_mem_blocks, num_super_blocks, 1>& 
+    local_allocator_ctx, const uint32_t& laneId) {
     return local_allocator_ctx.warpAllocate(laneId);
   }
 
@@ -168,7 +174,8 @@ class GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentSet, log_num_mem_blocks
 
   // slab hash context, contains everything that a GPU application needs to be
   // able to use this data structure
-  GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentSet, log_num_mem_blocks, num_super_blocks> gpu_context_;
+  GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentSet, 
+                     log_num_mem_blocks, num_super_blocks> gpu_context_;
 
   // const pointer to an allocator that all instances of slab hash are going to
   // use. The allocator itself is not owned by this class
@@ -198,7 +205,8 @@ class GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentSet, log_num_mem_blocks
     CHECK_CUDA_ERROR(cudaSetDevice(device_idx_));
 
     slab_unit_size_ =
-        GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blocks, num_super_blocks>::getSlabUnitSize();
+        GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, 
+                           log_num_mem_blocks, num_super_blocks>::getSlabUnitSize();
 
     // allocating initial buckets:
     CHECK_CUDA_ERROR(cudaMalloc((void**)&d_table_, slab_unit_size_ * num_buckets_));
@@ -229,7 +237,8 @@ class GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentSet, log_num_mem_blocks
   // returns some debug information about the slab hash
   std::string to_string();
   double computeLoadFactor(int flag) {}
-  GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentSet, log_num_mem_blocks, num_super_blocks>& getSlabHashContext() {
+  GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentSet, 
+                     log_num_mem_blocks, num_super_blocks>& getSlabHashContext() {
     return gpu_context_;
   }
 
