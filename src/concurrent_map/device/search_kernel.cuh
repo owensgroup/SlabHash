@@ -17,12 +17,12 @@
 #pragma once
 
 //=== Individual search kernel:
-template <typename KeyT, typename ValueT>
+template <typename KeyT, typename ValueT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
 __global__ void search_table(
     KeyT* d_queries,
     ValueT* d_results,
     uint32_t num_queries,
-    GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> slab_hash) {
+    GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blocks, num_super_blocks> slab_hash) {
   uint32_t tid = threadIdx.x + blockIdx.x * blockDim.x;
   uint32_t laneId = threadIdx.x & 0x1F;
 
@@ -49,12 +49,12 @@ __global__ void search_table(
 }
 
 //=== Bulk search kernel:
-template <typename KeyT, typename ValueT>
+template <typename KeyT, typename ValueT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
 __global__ void search_table_bulk(
     KeyT* d_queries,
     ValueT* d_results,
     uint32_t num_queries,
-    GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> slab_hash) {
+    GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blocks, num_super_blocks> slab_hash) {
   uint32_t tid = threadIdx.x + blockIdx.x * blockDim.x;
   uint32_t laneId = threadIdx.x & 0x1F;
 

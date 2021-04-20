@@ -16,8 +16,8 @@
 
 #pragma once
 
-template <typename KeyT, typename ValueT>
-void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentSet>::buildBulk(
+template <typename KeyT, typename ValueT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
+void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentSet, log_num_mem_blocks, num_super_blocks>::buildBulk(
     KeyT* d_key,
     ValueT* d_value,
     uint32_t num_keys) {
@@ -28,8 +28,8 @@ void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentSet>::buildBulk(
       <<<num_blocks, BLOCKSIZE_>>>(d_key, num_keys, gpu_context_);
 }
 
-template <typename KeyT, typename ValueT>
-void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentSet>::searchIndividual(
+template <typename KeyT, typename ValueT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
+void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentSet, log_num_mem_blocks, num_super_blocks>::searchIndividual(
     KeyT* d_query,
     ValueT* d_result,
     uint32_t num_queries) {
@@ -39,8 +39,8 @@ void GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentSet>::searchIndividual(
       <<<num_blocks, BLOCKSIZE_>>>(d_query, d_result, num_queries, gpu_context_);
 }
 
-template <typename KeyT, typename ValueT>
-std::string GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentSet>::to_string() {
+template <typename KeyT, typename ValueT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
+std::string GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentSet, log_num_mem_blocks, num_super_blocks>::to_string() {
   std::string result;
   result += " ==== GpuSlabHash: \n";
   result += "\t Running on device \t\t " + std::to_string(device_idx_) + "\n";

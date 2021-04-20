@@ -28,9 +28,9 @@
 #define DEVICE_ID 0
 //=======================================
 
-template <typename KeyT>
+template <typename KeyT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
 __global__ void print_table(
-    GpuSlabHashContext<KeyT, KeyT, SlabHashTypeT::ConcurrentSet> slab_hash) {
+    GpuSlabHashContext<KeyT, KeyT, SlabHashTypeT::ConcurrentSet, log_num_mem_blocks, num_super_blocks> slab_hash) {
   uint32_t tid = threadIdx.x + blockIdx.x * blockDim.x;
   uint32_t wid = tid >> 5;
   uint32_t laneId = threadIdx.x & 0x1F;
@@ -44,7 +44,7 @@ __global__ void print_table(
 
   if (tid == 0) {
     printf(" == Printing the base array\n");
-    SlabIterator<KeyT> iter(slab_hash);
+    SlabIterator<KeyT, log_num_mem_blocks, num_super_blocks> iter(slab_hash);
     for (int i = 0; i < iter.cur_size_; i++) {
       if ((i & 0x1F) == 0)
         printf(" == bucket %d:\n", i >> 5);

@@ -19,9 +19,9 @@
 //================================================
 // Individual Search Unit:
 //================================================
-template <typename KeyT, typename ValueT>
+template <typename KeyT, typename ValueT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
 __device__ __forceinline__ void
-GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::searchKey(
+GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blocks, num_super_blocks>::searchKey(
     bool& to_be_searched,
     const uint32_t& laneId,
     const KeyT& myKey,
@@ -73,9 +73,9 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::searchKey(
 //================================================
 // Bulk Search Unit:
 //================================================
-template <typename KeyT, typename ValueT>
+template <typename KeyT, typename ValueT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
 __device__ __forceinline__ void
-GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::searchKeyBulk(
+GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blocks, num_super_blocks>::searchKeyBulk(
     const uint32_t& laneId,
     const KeyT& myKey,
     ValueT& myValue,

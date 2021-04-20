@@ -17,6 +17,7 @@
 #pragma once
 
 #include "slab_alloc.cuh"
+#include "cub/cub.cuh"
 
 #define CHECK_CUDA_ERROR(call)                                                          \
   do {                                                                                  \
@@ -118,17 +119,17 @@ class PhaseConcurrentMapT {
 };
 
 // the main class to be specialized for different types of hash tables
-template <typename KeyT, typename ValueT, SlabHashTypeT SlabHashT>
+template <typename KeyT, typename ValueT, SlabHashTypeT SlabHashT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
 class GpuSlabHash;
 
-template <typename KeyT, typename ValueT, SlabHashTypeT SlabHashT>
+template <typename KeyT, typename ValueT, SlabHashTypeT SlabHashT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
 class GpuSlabHashContext;
 
 // The custom allocator that is being used for this code:
 // this might need to be a template paramater itself
 namespace slab_alloc_par {
-constexpr uint32_t log_num_mem_blocks = 8;
-constexpr uint32_t num_super_blocks = 32;
+constexpr uint32_t log_num_mem_blocks = 9; // 64 MB 
+constexpr uint32_t num_super_blocks = 15;
 constexpr uint32_t num_replicas = 1;
 }  // namespace slab_alloc_par
 

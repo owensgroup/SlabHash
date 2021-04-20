@@ -6,7 +6,7 @@ find_package(CUDA 8.0 REQUIRED)
 option(CMAKE_VERBOSE_MAKEFILE ON)
 option(DGTEST,  "DGTEST"  ON)
 
-set(CUDA_NVCC_FLAGS -std=c++11)
+set(CUDA_NVCC_FLAGS -std=c++14)
 set (CMAKE_CXX_STANDARD 11)
 
 if (CUDA_VERBOSE_PTXAS)
@@ -83,6 +83,7 @@ if(SLABHASH_GENCODE_SM75)
 endif(SLABHASH_GENCODE_SM75)
 
 include_directories(SlabAlloc/src)
+include_directories(cub)
 include_directories(src src/concurrent)
 include_directories(ThirdParty/rapidjson/include)
 include_directories(ThirdParty/googletest/googletest)

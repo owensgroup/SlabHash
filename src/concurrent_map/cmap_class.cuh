@@ -22,8 +22,9 @@
  * used at runtime. This class does not own the allocated memory on the gpu
  * (i.e., d_table_)
  */
-template <typename KeyT, typename ValueT>
-class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
+template <typename KeyT, typename ValueT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
+class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, 
+                         log_num_mem_blocks, num_super_blocks> {
  public:
   // fixed known parameters:
   static constexpr uint32_t PRIME_DIVISOR_ = 4294967291u;
@@ -31,12 +32,16 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
 
 #pragma hd_warning_disable
   __host__ __device__ GpuSlabHashContext()
-      : num_buckets_(0), hash_x_(0), hash_y_(0), d_table_(nullptr) {}
+      : num_buckets_(0), total_num_slabs_(0), total_num_keys_(0), 
+        hash_x_(0), hash_y_(0), d_table_(nullptr) {}
 
 #pragma hd_warning_disable
   __host__ __device__ GpuSlabHashContext(
-      GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>& rhs) {
+      GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, 
+      log_num_mem_blocks, num_super_blocks>& rhs) {
     num_buckets_ = rhs.getNumBuckets();
+    total_num_slabs_ = rhs.getTotalNumSlabs();
+    total_num_keys_ = rhs.getTotalNumKeys();
     hash_x_ = rhs.getHashX();
     hash_y_ = rhs.getHashY();
     d_table_ = rhs.getDeviceTablePointer();
@@ -58,16 +63,30 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
                                const uint32_t hash_x,
                                const uint32_t hash_y,
                                int8_t* d_table,
-                               AllocatorContextT* allocator_ctx) {
+                               SlabAllocLightContext<log_num_mem_blocks, 
+                               num_super_blocks, 1>* allocator_ctx) {
     num_buckets_ = num_buckets;
     hash_x_ = hash_x;
     hash_y_ = hash_y;
     d_table_ =
         reinterpret_cast<typename ConcurrentMapT<KeyT, ValueT>::SlabTypeT*>(d_table);
     global_allocator_ctx_ = *allocator_ctx;
+    total_num_slabs_ = num_buckets + global_allocator_ctx_.getNumSlabsInPool();
+    total_num_keys_ = 0;
   }
 
-  __device__ __host__ __forceinline__ AllocatorContextT& getAllocatorContext() {
+  __host__ void updateAllocatorContext(SlabAllocLightContext<log_num_mem_blocks, 
+    num_super_blocks, 1>* allocator_ctx) {
+    global_allocator_ctx_ = *allocator_ctx;
+    total_num_slabs_ = num_buckets_ + global_allocator_ctx_.getNumSlabsInPool();
+  }
+
+  __host__ void updateTotalNumKeys(uint32_t keysAdded) {
+    total_num_keys_ += keysAdded;
+  }
+
+  __device__ __host__ __forceinline__ SlabAllocLightContext<log_num_mem_blocks, 
+    num_super_blocks, 1>& getAllocatorContext() {
     return global_allocator_ctx_;
   }
 
@@ -76,6 +95,8 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
     return d_table_;
   }
 
+  __device__ __host__ __forceinline__ uint32_t getTotalNumSlabs() {return total_num_slabs_; }
+  __device__ __host__ __forceinline__ uint32_t getTotalNumKeys() {return total_num_keys_; }
   __device__ __host__ __forceinline__ uint32_t getNumBuckets() { return num_buckets_; }
   __device__ __host__ __forceinline__ uint32_t getHashX() { return hash_x_; }
   __device__ __host__ __forceinline__ uint32_t getHashY() { return hash_y_; }
@@ -86,22 +107,25 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
 
   // threads in a warp cooperate with each other to insert key-value pairs
   // into the slab hash
-  __device__ __forceinline__ void insertPair(bool& to_be_inserted,
+  __device__ __forceinline__ void insertPair(/*bool& mySuccess,*/
+                                             bool& to_be_inserted,
                                              const uint32_t& laneId,
                                              const KeyT& myKey,
                                              const ValueT& myValue,
                                              const uint32_t bucket_id,
-                                             AllocatorContextT& local_allocator_context);
+                                             SlabAllocLightContext<log_num_mem_blocks, 
+                                             num_super_blocks, 1>& local_allocator_context);
 
   // threads in a warp cooperate with each other to insert a unique key (and its value)
   // into the slab hash
   __device__ __forceinline__ bool insertPairUnique(
+      int& mySuccess,
       bool& to_be_inserted,
       const uint32_t& laneId,
       const KeyT& myKey,
       const ValueT& myValue,
       const uint32_t bucket_id,
-      AllocatorContextT& local_allocator_context);
+      SlabAllocLightContext<log_num_mem_blocks, num_super_blocks, 1>& local_allocator_context);
 
   // threads in a warp cooperate with each other to search for keys
   // if found, it returns the corresponding value, else SEARCH_NOT_FOUND
@@ -154,7 +178,8 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
   }
 
   __device__ __forceinline__ SlabAllocAddressT
-  allocateSlab(AllocatorContextT& local_allocator_ctx, const uint32_t& laneId) {
+  allocateSlab(SlabAllocLightContext<log_num_mem_blocks, num_super_blocks, 1>& 
+    local_allocator_ctx, const uint32_t& laneId) {
     return local_allocator_ctx.warpAllocate(laneId);
   }
 
@@ -165,18 +190,20 @@ class GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
 
   // === members:
   uint32_t num_buckets_;
+  uint32_t total_num_slabs_;
+  uint32_t total_num_keys_;
   uint32_t hash_x_;
   uint32_t hash_y_;
   typename ConcurrentMapT<KeyT, ValueT>::SlabTypeT* d_table_;
   // a copy of dynamic allocator's context to be used on the GPU
-  AllocatorContextT global_allocator_ctx_;
+  SlabAllocLightContext<log_num_mem_blocks, num_super_blocks, 1> global_allocator_ctx_;
 };
 
 /*
  * This class owns the allocated memory for the hash table
  */
-template <typename KeyT, typename ValueT>
-class GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
+template <typename KeyT, typename ValueT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
+class GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blocks, num_super_blocks> {
  private:
   // fixed known parameters:
   static constexpr uint32_t BLOCKSIZE_ = 128;
@@ -198,24 +225,29 @@ class GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
 
   // slab hash context, contains everything that a GPU application needs to be
   // able to use this data structure
-  GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> gpu_context_;
+  GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, 
+  log_num_mem_blocks, num_super_blocks> gpu_context_;
 
   // const pointer to an allocator that all instances of slab hash are going to
   // use. The allocator itself is not owned by this class
-  DynamicAllocatorT* dynamic_allocator_;
+  SlabAllocLight<log_num_mem_blocks, num_super_blocks, 1> *dynamic_allocator_;
   uint32_t device_idx_;
+
+  float thresh_lf_;
 
  public:
   GpuSlabHash(const uint32_t num_buckets,
-              DynamicAllocatorT* dynamic_allocator,
+              SlabAllocLight<log_num_mem_blocks, num_super_blocks, 1>* dynamic_allocator,
               uint32_t device_idx,
               const time_t seed = 0,
-              const bool identity_hash = false)
+              const bool identity_hash = false,
+              float thresh_lf = 0.60)
       : num_buckets_(num_buckets)
       , d_table_(nullptr)
       , slab_unit_size_(0)
       , dynamic_allocator_(dynamic_allocator)
-      , device_idx_(device_idx) {
+      , device_idx_(device_idx)
+      , thresh_lf_(thresh_lf) {
     assert(dynamic_allocator && "No proper dynamic allocator attached to the slab hash.");
     assert(sizeof(typename ConcurrentMapT<KeyT, ValueT>::SlabTypeT) ==
                (WARP_WIDTH_ * sizeof(uint32_t)) &&
@@ -227,7 +259,8 @@ class GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
     CHECK_CUDA_ERROR(cudaSetDevice(device_idx_));
 
     slab_unit_size_ =
-        GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::getSlabUnitSize();
+        GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, 
+        log_num_mem_blocks, num_super_blocks>::getSlabUnitSize();
 
     // allocating initial buckets:
     CHECK_CUDA_ERROR(cudaMalloc((void**)&d_table_, slab_unit_size_ * num_buckets_));
@@ -258,7 +291,9 @@ class GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
   // returns some debug information about the slab hash
   std::string to_string();
   double computeLoadFactor(int flag);
-
+ 
+  void resize();
+  uint32_t checkForPreemptiveResize(uint32_t keysAdded);
   void buildBulk(KeyT* d_key, ValueT* d_value, uint32_t num_keys);
   void buildBulkWithUniqueKeys(KeyT* d_key, ValueT* d_value, uint32_t num_keys);
   void searchIndividual(KeyT* d_query, ValueT* d_result, uint32_t num_queries);

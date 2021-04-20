@@ -21,15 +21,16 @@
  * it is assumed all threads within a warp are present and collaborating with
  * each other with a warp-cooperative work sharing (WCWS) strategy.
  */
-template <typename KeyT, typename ValueT>
+template <typename KeyT, typename ValueT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
 __device__ __forceinline__ void
-GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::insertPair(
+GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blocks, num_super_blocks>::insertPair(
+    /*bool& mySuccess,*/
     bool& to_be_inserted,
     const uint32_t& laneId,
     const KeyT& myKey,
     const ValueT& myValue,
     const uint32_t bucket_id,
-    AllocatorContextT& local_allocator_ctx) {
+    SlabAllocLightContext<log_num_mem_blocks, num_super_blocks>& local_allocator_ctx) {
   using SlabHashT = ConcurrentMapT<KeyT, ValueT>;
   uint32_t work_queue = 0;
   uint32_t last_work_queue = 0;
@@ -54,6 +55,11 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::insertPair(
       if (next_ptr == SlabHashT::EMPTY_INDEX_POINTER) {
         // allocate a new node:
         uint32_t new_node_ptr = allocateSlab(local_allocator_ctx, laneId);
+        if(new_node_ptr == 0xFFFFFFFF) { // could not allocate a new slab: pool size needs to be increased
+          //mySuccess = false; // signal that this key needs to be reinserted 
+          to_be_inserted = false;
+          continue;
+        }
 
         // TODO: experiment if it's better to use lane 0 instead
         if (laneId == 31) {
@@ -87,8 +93,10 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::insertPair(
                        << 32) |
                           *reinterpret_cast<const uint32_t*>(
                               reinterpret_cast<const unsigned char*>(&myKey)));
-        if (old_key_value_pair == EMPTY_PAIR_64)
-          to_be_inserted = false;  // succesfful insertion
+        if (old_key_value_pair == EMPTY_PAIR_64) {
+          //mySuccess = true;
+          to_be_inserted = false;  // successful insertion
+        }
       }
     }
     last_work_queue = work_queue;
@@ -102,15 +110,17 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::insertPair(
  * each other with a warp-cooperative work sharing (WCWS) strategy.
  * returns true only if a new key was inserted into the hash table
  */
-template <typename KeyT, typename ValueT>
+template <typename KeyT, typename ValueT, uint32_t log_num_mem_blocks, uint32_t num_super_blocks>
 __device__ __forceinline__ bool
-GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::insertPairUnique(
+GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap, log_num_mem_blocks, num_super_blocks>::insertPairUnique(
+    int& mySuccess,
     bool& to_be_inserted,
     const uint32_t& laneId,
     const KeyT& myKey,
     const ValueT& myValue,
     const uint32_t bucket_id,
-    AllocatorContextT& local_allocator_ctx) {
+    SlabAllocLightContext<log_num_mem_blocks, num_super_blocks, 1>& local_allocator_ctx) {
+
   using SlabHashT = ConcurrentMapT<KeyT, ValueT>;
   uint32_t work_queue = 0;
   uint32_t last_work_queue = 0;
@@ -135,14 +145,19 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::insertPairUnique
     uint32_t isExisting = (__ballot_sync(0xFFFFFFFF, src_unit_data == src_key)) &
                           SlabHashT::REGULAR_NODE_KEY_MASK;
     if (isExisting) {  // key exist in the hash table
-      if (laneId == src_lane)
+      if (laneId == src_lane) {
         to_be_inserted = false;
+      }
     } else {
       if (isEmpty == 0) {  // no empty slot available:
         uint32_t next_ptr = __shfl_sync(0xFFFFFFFF, src_unit_data, 31, 32);
         if (next_ptr == SlabHashT::EMPTY_INDEX_POINTER) {
           // allocate a new node:
           uint32_t new_node_ptr = allocateSlab(local_allocator_ctx, laneId);
+          if(new_node_ptr == 0xFFFFFFFF) { // could not allocate a new slab: pool size needs to be increased
+            to_be_inserted = false;
+            continue;
+          }
 
           if (laneId == 31) {
             const uint32_t* p = (next == SlabHashT::A_INDEX_POINTER)
@@ -176,6 +191,7 @@ GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentMap>::insertPairUnique
                             *reinterpret_cast<const uint32_t*>(
                                 reinterpret_cast<const unsigned char*>(&myKey)));
           if (old_key_value_pair == EMPTY_PAIR_64) {
+            mySuccess += 1;
             to_be_inserted = false;  // successful insertion
             new_insertion = true;
           }

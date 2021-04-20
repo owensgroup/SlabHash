@@ -1,9 +1,12 @@
 [submodule "SlabAlloc"]
 	path = SlabAlloc
-	url = https://github.com/owensgroup/SlabAlloc
+	url = https://github.com/Nicolas-Iskos/SlabAlloc
 [submodule "ThirdParty/rapidjson"]
 	path = ThirdParty/rapidjson
 	url = https://github.com/Tencent/rapidjson
 [submodule "ThirdParty/googletest"]
 	path = ThirdParty/googletest
 	url = https://github.com/google/googletest
+[submodule "cub"]
+	path = cub
+	url = https://github.com/NVIDIA/cub.git
