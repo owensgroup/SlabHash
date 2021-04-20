@@ -1,5 +1,7 @@
 # SlabHash
-A warp-oriented dynamic hash table for GPUs
+A warp-oriented dynamic hash table for GPUs. 
+
+This fork of SlabHash is modified to allow for dynamic growth of the slab pool, allowing the slab hash to increase its total memory footprint as keys are inserted during run time.
 
 ## Publication:
 This library is based on the original slab hash paper, initially proposed in the following IPDPS'18 paper:
