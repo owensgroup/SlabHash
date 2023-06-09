@@ -18,6 +18,62 @@
 
 template <typename KeyT, typename ValueT>
 __device__ __forceinline__ bool
+GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentSet>::deleteKey(
+    bool& to_be_deleted,
+    const uint32_t& laneId,
+    const KeyT& myKey,
+    const uint32_t bucket_id) {
+  using SlabHashT = ConcurrentSetT<KeyT>;
+  uint32_t work_queue = 0;
+  uint32_t last_work_queue = 0;
+  uint32_t next = SlabHashT::A_INDEX_POINTER;
+  bool successful_deletion = false;
+
+  while ((work_queue = __ballot_sync(0xFFFFFFFF, to_be_deleted))) {
+    // to know whether it is a base node, or a regular node
+    next = (last_work_queue != work_queue) ? SlabHashT::A_INDEX_POINTER
+                                           : next;  // a successfull insertion in the warp
+    uint32_t src_lane = __ffs(work_queue) - 1;
+    KeyT src_key = __shfl_sync(0xFFFFFFFF, myKey, src_lane, 32);
+    uint32_t src_bucket = __shfl_sync(0xFFFFFFFF, bucket_id, src_lane, 32);
+
+    uint32_t src_unit_data = (next == SlabHashT::A_INDEX_POINTER)
+                                 ? *getPointerFromBucket(src_bucket, laneId)
+                                 : *getPointerFromSlab(next, laneId);
+
+    uint32_t old_key = 0;
+
+    // looking for the same key (if it exists)
+    int32_t dest_lane =
+        SlabHash_NS::findKeyPerWarp<KeyT, ConcurrentSetT<KeyT>>(src_key, src_unit_data);
+
+    if (dest_lane < 0) {  // key not found
+      uint32_t next_ptr = __shfl_sync(0xFFFFFFFF, src_unit_data, 31, 32);
+      if (next_ptr == SlabHashT::EMPTY_INDEX_POINTER) {  // not found
+        if (laneId == src_lane) {
+          to_be_deleted = false;
+        }
+      } else {
+        next = next_ptr;
+      }
+    } else {
+      if (laneId == src_lane) {
+        const uint32_t* p = (next == SlabHashT::A_INDEX_POINTER)
+                                ? getPointerFromBucket(src_bucket, dest_lane)
+                                : getPointerFromSlab(next, dest_lane);
+
+        old_key = atomicExch((unsigned int*)p, EMPTY_KEY);
+        successful_deletion = (old_key == src_key);
+        to_be_deleted = false;
+      }
+    }
+    last_work_queue = work_queue;
+  }
+  return successful_deletion;
+}
+
+template <typename KeyT, typename ValueT>
+__device__ __forceinline__ bool
 GpuSlabHashContext<KeyT, ValueT, SlabHashTypeT::ConcurrentSet>::insertKey(
     bool& to_be_inserted,
     const uint32_t& laneId,
