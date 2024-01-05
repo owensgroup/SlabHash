@@ -35,6 +35,14 @@ set(GENCODE_SM71
   -gencode=arch=compute_71,code=sm_71 -gencode=arch=compute_71,code=compute_71)
 set(GENCODE_SM75
 -gencode=arch=compute_75,code=sm_75 -gencode=arch=compute_75,code=compute_75)
+set(GENCODE_SM86
+-gencode=arch=compute_86,code=sm_86 -gencode=arch=compute_86,code=compute_86)
+set(GENCODE_SM87
+-gencode=arch=compute_87,code=sm_87 -gencode=arch=compute_87,code=compute_87)
+set(GENCODE_SM89
+-gencode=arch=compute_89,code=sm_89 -gencode=arch=compute_89,code=compute_89)
+set(GENCODE_SM90
+-gencode=arch=compute_90,code=sm_90 -gencode=arch=compute_90,code=compute_90)
 
 option(SLABHASH_GENCODE_SM30 "GENCODE_SM30" OFF)
 option(SLABHASH_GENCODE_SM35 "GENCODE_SM35" ON)
@@ -45,6 +53,10 @@ option(SLABHASH_GENCODE_SM61 "GENCODE_SM61" OFF)
 option(SLABHASH_GENCODE_SM70 "GENCODE_SM70" OFF)
 option(SLABHASH_GENCODE_SM71 "GENCODE_SM71" OFF)
 option(SLABHASH_GENCODE_SM75 "GENCODE_SM75" OFF)
+option(SLABHASH_GENCODE_SM86 "GENCODE_SM86" OFF)
+option(SLABHASH_GENCODE_SM87 "GENCODE_SM87" OFF)
+option(SLABHASH_GENCODE_SM89 "GENCODE_SM89" OFF)
+option(SLABHASH_GENCODE_SM90 "GENCODE_SM90" OFF)
 
 if (SLABHASH_GENCODE_SM30)
   set(GENCODE ${GENCODE} ${GENCODE_SM30})
@@ -81,6 +93,22 @@ endif(SLABHASH_GENCODE_SM71)
 if(SLABHASH_GENCODE_SM75)
   set(GENCODE ${GENCODE} ${GENCODE_SM75})
 endif(SLABHASH_GENCODE_SM75)
+
+if(SLABHASH_GENCODE_SM86)
+  set(GENCODE ${GENCODE} ${GENCODE_SM86})
+endif(SLABHASH_GENCODE_SM86)
+
+if(SLABHASH_GENCODE_SM87)
+  set(GENCODE ${GENCODE} ${GENCODE_SM87})
+endif(SLABHASH_GENCODE_SM87)
+
+if(SLABHASH_GENCODE_SM89)
+  set(GENCODE ${GENCODE} ${GENCODE_SM89})
+endif(SLABHASH_GENCODE_SM89)
+
+if(SLABHASH_GENCODE_SM90)
+  set(GENCODE ${GENCODE} ${GENCODE_SM90})
+endif(SLABHASH_GENCODE_SM90)
 
 include_directories(SlabAlloc/src)
 include_directories(src src/concurrent)
