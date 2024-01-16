@@ -25,7 +25,7 @@ There are a few variations of GpuSlabHash class. The most complete one at the mo
 This class partially owns all the memory allocated on the GPU to actually store all the contents, side by side all units allocated by the dynamic memory allocator. 
 There is another class, named [https://github.com/owensgroup/SlabHash/blob/master/src/concurrent_map/cmap_class.cuh#L26](`GpuSlabHashContext`), which does not own any memory but has all the related member functions to use the data structure itself. The context class is the one which is used by GPU threads on the device. Here's an example of the way to use it for a [https://github.com/owensgroup/SlabHash/blob/master/src/concurrent_map/device/search_kernel.cuh](search kernel):
 
-```
+```c++
 template <typename KeyT, typename ValueT>
 __global__ void search_table(
     KeyT* d_queries,
