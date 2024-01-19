@@ -179,7 +179,7 @@ template <typename KeyT, typename ValueT>
 class GpuSlabHash<KeyT, ValueT, SlabHashTypeT::ConcurrentMap> {
  private:
   // fixed known parameters:
-  static constexpr uint32_t BLOCKSIZE_ = 128;
+  static constexpr uint32_t BLOCKSIZE_ = 512;
   static constexpr uint32_t WARP_WIDTH_ = 32;
   static constexpr uint32_t PRIME_DIVISOR_ = 4294967291u;
 
